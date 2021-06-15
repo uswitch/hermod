@@ -15,7 +15,7 @@ type deploymentInformer struct {
 	store      cache.Store
 	controller cache.Controller
 	client     *kubernetes.Clientset
-	Context    context.Context
+	Context    context.Context // TODO: Make it private if not needed in any other package
 }
 
 func NewDeploymentWatcher(client *kubernetes.Clientset) *deploymentInformer {

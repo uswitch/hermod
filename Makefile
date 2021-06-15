@@ -2,7 +2,7 @@ ARCH = amd64
 BIN  = bin/hermod
 BIN_LINUX  = $(BIN)-linux-$(ARCH)
 BIN_DARWIN = $(BIN)-darwin-$(ARCH)
-IMAGE = uswitch/hermod
+IMAGE = registry.usw.co/uswitch/hermod
 
 SOURCES = $(shell find . -type f -iname "*.go")
 
@@ -26,4 +26,4 @@ clean:
 	rm -rf bin/
 
 image: 
-	docker build -t registry.usw.co/cloud/hermod:testing .
+	docker build -t $(IMAGE):testing .

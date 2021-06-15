@@ -23,17 +23,7 @@ func main() {
 	kingpin.Flag("level", "Log level: debug, info, warn, error.").Default("info").EnumVar(&opts.logLevel, "debug", "info", "warn", "error")
 	kingpin.Parse()
 
-	switch opts.logLevel {
-	case "debug":
-		log.SetLevel(log.DebugLevel)
-	case "info":
-		log.SetLevel(log.InfoLevel)
-	case "warn":
-		log.SetLevel(log.WarnLevel)
-	case "error":
-		log.SetLevel(log.ErrorLevel)
-	}
-	log.SetFormatter(&log.JSONFormatter{})
+	configureLogger(opts.logLevel)
 
 	kubeConfig, err := kubepkg.CreateClientConfig(opts.kubeconfig)
 	if err != nil {

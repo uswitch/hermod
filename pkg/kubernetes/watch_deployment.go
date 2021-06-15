@@ -36,6 +36,10 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 	deploymentNew, _ := new.(*appsv1.Deployment)
 
 	// Do something
+
+	// TODO: check if it's rollout
+
+	// TODO: call a function and poll the successful condition of a rollout
 }
 
 func (b *deploymentInformer) Run(ctx context.Context, stopCh <-chan struct{}) {

@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -17,6 +18,8 @@ type deploymentInformer struct {
 	client     *kubernetes.Clientset
 	Context    context.Context // TODO: Make it private if not needed in any other package
 }
+
+const revision = "deployment.kubernetes.io/revision"
 
 func NewDeploymentWatcher(client *kubernetes.Clientset) *deploymentInformer {
 	deploymentInformer := &deploymentInformer{}
@@ -35,11 +38,22 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 	deploymentOld, _ := old.(*appsv1.Deployment)
 	deploymentNew, _ := new.(*appsv1.Deployment)
 
-	// Do something
+	// check if it's a new deployment for now just print
 
-	// TODO: check if it's rollout
+	if deploymentOld.GetAnnotations()[revision] != deploymentNew.GetAnnotations()[revision] {
+		fmt.Println("deploying:", deploymentNew.Name, "in namespace:", deploymentNew.Namespace)
+	}
 
-	// TODO: call a function and poll the successful condition of a rollout
+	// follow new deployment and check status of replicas match what is expected to sure a successful rollout
+	// for now just print the outcome, this will eventually be passed to a new function.
+
+	if deploymentNew.Status.Replicas == deploymentNew.Status.ReadyReplicas && deploymentNew.Status.UpdatedReplicas == deploymentNew.Status.Replicas {
+		fmt.Println("deployment successfull")
+		return
+	} else {
+		fmt.Println("deployment failed:", deploymentNew.Status.Conditions)
+		return
+	}
 }
 
 func (b *deploymentInformer) Run(ctx context.Context, stopCh <-chan struct{}) {

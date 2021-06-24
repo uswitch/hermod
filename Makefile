@@ -9,10 +9,10 @@ SOURCES = $(shell find . -type f -iname "*.go")
 .PHONY: clean
 
 $(BIN_DARWIN): $(SOURCES)
-	GOARCH=$(ARCH) GOOS=darwin go build -o $(BIN_DARWIN) main.go
+	GOARCH=$(ARCH) GOOS=darwin go build -o $(BIN_DARWIN) *.go
 
 $(BIN_LINUX): $(SOURCES)
-	GOARCH=$(ARCH) GOOS=linux CGO_ENABLED=0 go build -o $(BIN_LINUX) main.go
+	GOARCH=$(ARCH) GOOS=linux CGO_ENABLED=0 go build -o $(BIN_LINUX) *.go
 
 build: $(BIN_DARWIN) $(BIN_LINUX) fmt vet
 

@@ -9,6 +9,9 @@ pipeline:
     commands:
       - make build
 
+
+  # Docker build will be added at a later stage
+  # https://rvu.atlassian.net/browse/AIRSHIP-386
   docker-latest:
     image: plugins/docker
     repo: registry.usw.co/cloud/hermod

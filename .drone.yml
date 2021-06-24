@@ -9,28 +9,30 @@ pipeline:
     commands:
       - make build
 
-  docker-latest:
-    image: plugins/docker
-    repo: registry.usw.co/cloud/hermod
-    tags:
-      - latest
-    when:
-      event: push
-      branch: master
 
-  docker-tagged:
-    image: plugins/docker
-    repo: registry.usw.co/cloud/hermod
-    tags:
-      - ${DRONE_TAG}
-    when:
-      event: tag
+  # Docker build will be added at a later stage 
+  # docker-latest:
+  #   image: plugins/docker
+  #   repo: registry.usw.co/cloud/hermod
+  #   tags:
+  #     - latest
+  #   when:
+  #     event: push
+  #     branch: master
 
-  docker-test:
-    image: plugins/docker
-    when:
-      event: push
-    repo: registry.usw.co/cloud/hermod
-    tags:
-      - testing
-      - ${DRONE_COMMIT_SHA}
+  # docker-tagged:
+  #   image: plugins/docker
+  #   repo: registry.usw.co/cloud/hermod
+  #   tags:
+  #     - ${DRONE_TAG}
+  #   when:
+  #     event: tag
+
+  # docker-test:
+  #   image: plugins/docker
+  #   when:
+  #     event: push
+  #   repo: registry.usw.co/cloud/hermod
+  #   tags:
+  #     - testing
+  #     - ${DRONE_COMMIT_SHA}

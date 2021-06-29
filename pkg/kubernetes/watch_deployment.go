@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -10,7 +12,9 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -28,12 +32,17 @@ type deploymentInformer struct {
 const (
 	slackChannelAnnotation = "com.uswitch.hermod/slack"
 	revision               = "deployment.kubernetes.io/revision"
+	hermodAnnotation       = "hermod.uswitch.com/state"
+	hermodPassState        = "pass"
+	hermodFailState        = "fail"
+	hermodProgressingState = "progressing"
 )
 
 func NewDeploymentWatcher(client *kubernetes.Clientset) *deploymentInformer {
 	deploymentInformer := &deploymentInformer{client: client}
 	watcher := cache.NewListWatchFromClient(client.AppsV1().RESTClient(), "deployments", "", fields.Everything())
 	deploymentInformer.store, deploymentInformer.controller = cache.NewIndexerInformer(watcher, &appsv1.Deployment{}, time.Minute, deploymentInformer, cache.Indexers{})
+
 	return deploymentInformer
 }
 
@@ -48,26 +57,65 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 	deploymentNew, _ := new.(*appsv1.Deployment)
 
 	slackChannel := getSlackChannel(deploymentNew.Namespace, b.namespaceIndexer)
+
 	if slackChannel == "" {
 		log.Debugf("no hermod slack channel specified for namespace: %s\n", deploymentNew.Namespace)
 		return
 	}
 	// check if it's a new deployment for now just print
+	// check resourceversion
+	if deploymentOld.ResourceVersion == deploymentNew.ResourceVersion && deploymentNew.Annotations[hermodAnnotation] != "progressing" {
+		return
+	}
 
+	updateDeployment := deploymentNew.DeepCopy()
 	if deploymentOld.GetAnnotations()[revision] != deploymentNew.GetAnnotations()[revision] {
-		fmt.Println("deploying:", deploymentNew.Name, "in namespace:", deploymentNew.Namespace)
+		// send message to slack
+		log.Infof("Rolling out Deployment %s in namespace %s.", deploymentNew.Name, deploymentNew.Namespace)
+		err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodProgressingState)
+		if err != nil {
+			log.Errorf("failed to add annotation: %v", err)
+		}
 	}
 
-	// follow new deployment and check status of replicas match what is expected to sure a successful rollout
-	// for now just print the outcome, this will eventually be passed to a new function.
+	// Get the DeploymentCondition and sort them based on time
+	deploymentConditions := deploymentNew.Status.Conditions
+	sort.Slice(deploymentConditions, func(i, j int) bool {
+		return deploymentConditions[i].LastUpdateTime.Before(&deploymentConditions[j].LastUpdateTime)
+	})
 
-	if deploymentNew.Status.Replicas == deploymentNew.Status.ReadyReplicas && deploymentNew.Status.UpdatedReplicas == deploymentNew.Status.Replicas {
-		fmt.Println("deployment successfull")
-		return
-	} else {
-		fmt.Println("deployment failed:", deploymentNew.Status.Conditions)
-		return
+	// Successful condition
+	if deploymentConditions[len(deploymentConditions)-1].Status == corev1.ConditionTrue &&
+		deploymentNew.Generation == deploymentNew.Status.ObservedGeneration &&
+		deploymentNew.Status.Replicas == deploymentNew.Status.ReadyReplicas &&
+		deploymentNew.Status.UpdatedReplicas == deploymentNew.Status.ReadyReplicas &&
+		*deploymentNew.Spec.Replicas == deploymentNew.Status.ReadyReplicas {
+
+		if deploymentNew.Annotations[hermodAnnotation] != hermodPassState {
+			err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodPassState)
+			if err != nil {
+				log.Errorf("failed to add annotation: %v", err)
+			}
+			log.Infof("Rollout for Deployment %s Successful", deploymentNew.Name)
+			// send message to slack
+		}
 	}
+
+	if deploymentNew.Generation == deploymentNew.Status.ObservedGeneration && deploymentConditions[len(deploymentConditions)-1].Reason == "ProgressDeadlineExceeded" {
+		if deploymentNew.Annotations[hermodAnnotation] != hermodFailState {
+			err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodFailState)
+			if err != nil {
+				log.Errorf("failed to add annotation: %v", err)
+			}
+			errorMsg, err := getErrorEvents(b.Context, b.client, deploymentNew.Namespace, updateDeployment)
+			if err != nil {
+				log.Errorf("failed to get the error events: %v", err)
+			}
+			log.Info(errorMsg)
+			// send message to slack
+		}
+	}
+
 }
 
 func (b *deploymentInformer) Run(ctx context.Context, stopCh <-chan struct{}) {
@@ -107,4 +155,111 @@ func getSlackChannel(namespace string, indexer cache.Indexer) string {
 	}
 
 	return ""
+
+}
+
+func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace string, newDeployment *appsv1.Deployment) (string, error) {
+
+	// Get Deployment Labels
+	deploymentLabels := newDeployment.GetLabels()
+	labelSelector := labels.FormatLabels(deploymentLabels)
+
+	// Find Replicaset based on labels and given revision in annotation
+	rs, err := getReplicaSet(ctx, client, namespace, labelSelector, newDeployment.Annotations[revision])
+	if err != nil {
+		return "", err
+	}
+	// Get Replicaset Labels
+	rslabels := rs.GetLabels()
+	labelSelector = labels.FormatLabels(rslabels)
+
+	// Get list of Pods based on ReplicaSet labels
+	pods, err := getPods(ctx, client, namespace, labelSelector)
+	if err != nil {
+		return "", err
+	}
+
+	// construct error message
+	var errorString []string
+
+	errorText := fmt.Sprintf("Rollout for Deployment %s (RS: %s) failed after %v seconds.\nGot the following errors:", newDeployment.Name, rs.Name, *newDeployment.Spec.ProgressDeadlineSeconds)
+	errorString = append(errorString, errorText)
+
+	// Replicaset errors
+	if len(pods) == 0 {
+		rsConditions := rs.Status.Conditions
+		sort.Slice(rsConditions, func(i, j int) bool {
+			return rsConditions[i].LastTransitionTime.Before(&rsConditions[j].LastTransitionTime)
+		})
+		errorString = append(errorString, rsConditions[len(rsConditions)-1].Message)
+	} else {
+
+		// Map is avoid duplicate errors
+		resMsgMap := make(map[string]string)
+		for _, pod := range pods {
+			// look for error message in init Containers
+			resMsgMap = getResMsg(pod.Status.InitContainerStatuses, resMsgMap)
+
+			// look for error message in Containers
+			resMsgMap = getResMsg(pod.Status.ContainerStatuses, resMsgMap)
+
+		}
+
+		for reason, message := range resMsgMap {
+			errorString = append(errorString, fmt.Sprintf("* %s - %s", reason, message))
+		}
+	}
+
+	return strings.Join(errorString, "\n"), nil
+
+}
+
+func getResMsg(containerStatus []corev1.ContainerStatus, resMsgMap map[string]string) map[string]string {
+	for _, status := range containerStatus {
+		if status.State.Waiting != nil {
+			if status.State.Waiting.Reason == "ContainerCreating" {
+				continue
+			}
+			resMsgMap[status.State.Waiting.Reason] = status.State.Waiting.Message
+		}
+	}
+	return resMsgMap
+}
+
+// getReplicaSet will return associated replicaset with given deployment based on labelselctor & revision number
+func getReplicaSet(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string, revisionNumber string) (appsv1.ReplicaSet, error) {
+
+	rs, err := client.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		return appsv1.ReplicaSet{}, err
+	}
+	for _, rs := range rs.Items {
+		if rs.Annotations[revision] == revisionNumber {
+			return rs, nil
+		}
+	}
+	return appsv1.ReplicaSet{}, nil
+}
+
+// getPods will return list of pods based on given label selectors
+func getPods(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.Pod, error) {
+	pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+
+	if err != nil {
+		return []corev1.Pod{}, err
+	}
+	return pods.Items, nil
+}
+
+// addAnnotation will add the hermod specific annotation to the deployment
+func addAnnotation(ctx context.Context, client *kubernetes.Clientset, namespace string, newDeployment *appsv1.Deployment, state string) error {
+	ann := newDeployment.ObjectMeta.Annotations
+	ann[hermodAnnotation] = state
+	newDeployment.ObjectMeta.Annotations = ann
+
+	_, err := client.AppsV1().Deployments(namespace).Update(ctx, newDeployment, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }

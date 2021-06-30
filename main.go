@@ -15,13 +15,11 @@ import (
 type options struct {
 	kubeconfig string
 	logLevel   string
-	channelID  string
 }
 
 func main() {
 	log.Info("starting controller")
 	opts := &options{}
-	kingpin.Flag("channel-id", "ID of slack Channel to send messages too").StringVar(&opts.channelID)
 	kingpin.Flag("kubeconfig", "Path to kubeconfig.").StringVar(&opts.kubeconfig)
 	kingpin.Flag("level", "Log level: debug, info, warn, error.").Default("info").EnumVar(&opts.logLevel, "debug", "info", "warn", "error")
 	kingpin.Parse()
@@ -38,7 +36,7 @@ func main() {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	slackClient, err := slack.NewClient(opts.channelID)
+	slackClient, err := slack.NewClient()
 	if err != nil {
 		log.Fatalf("Error building slack client: %s", err.Error())
 	}

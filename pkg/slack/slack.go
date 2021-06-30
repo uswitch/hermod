@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 )
 
@@ -23,7 +24,7 @@ func NewClient() (*Client, error) {
 }
 
 func (c *Client) SendMessage(channel, message string) error {
-	fmt.Printf("sending alert \"%s\" to '%s'", message, channel)
+	log.Debugf("sending alert \"%s\" to '%s'", message, channel)
 
 	_, _, err := c.client.PostMessage(channel, slack.MsgOptionText(message, false))
 	if err != nil {

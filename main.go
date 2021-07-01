@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	kubepkg "github.com/uswitch/hermod/pkg/kubernetes"
+	"github.com/uswitch/hermod/pkg/slack"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/sample-controller/pkg/signals"
@@ -35,6 +36,10 @@ func main() {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
+	slackClient, err := slack.NewClient()
+	if err != nil {
+		log.Fatalf("Error building slack client: %s", err.Error())
+	}
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := signals.SetupSignalHandler()
 
@@ -43,6 +48,7 @@ func main() {
 	watcher := kubepkg.NewDeploymentWatcher(kubeClient)
 
 	watcher.Context = ctx
+	watcher.SlackClient = slackClient
 
 	log.Info("starting deployment watcher")
 

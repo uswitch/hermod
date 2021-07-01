@@ -6,6 +6,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/uswitch/hermod/pkg/slack"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -13,10 +14,11 @@ import (
 )
 
 type deploymentInformer struct {
-	store      cache.Store
-	controller cache.Controller
-	client     *kubernetes.Clientset
-	Context    context.Context // TODO: Make it private if not needed in any other package
+	store       cache.Store
+	controller  cache.Controller
+	client      *kubernetes.Clientset
+	SlackClient *slack.Client
+	Context     context.Context // TODO: Make it private if not needed in any other package
 }
 
 const revision = "deployment.kubernetes.io/revision"

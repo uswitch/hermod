@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/uswitch/hermod/pkg/slack"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,7 +27,7 @@ type deploymentInformer struct {
 
 const (
 	SLACK_CHANNEL_ANNOTATION = "com.uswitch.hermod/slack"
-	revision   = "deployment.kubernetes.io/revision"
+	revision                 = "deployment.kubernetes.io/revision"
 )
 
 func NewDeploymentWatcher(client *kubernetes.Clientset) *deploymentInformer {
@@ -82,7 +82,7 @@ func (b *deploymentInformer) Run(ctx context.Context, stopCh <-chan struct{}) {
 
 func watchNamespaces(context context.Context, client *kubernetes.Clientset) cache.Indexer {
 	listWatcher := cache.NewListWatchFromClient(client.CoreV1().RESTClient(), "namespaces", "", fields.Everything())
-	indexer, informer := cache.NewIndexerInformer(listWatcher, &v1.Namespace{}, 0, cache.ResourceEventHandlerFuncs{}, cache.Indexers{})
+	indexer, informer := cache.NewIndexerInformer(listWatcher, &corev1.Namespace{}, 0, cache.ResourceEventHandlerFuncs{}, cache.Indexers{})
 
 	go informer.Run(context.Done())
 

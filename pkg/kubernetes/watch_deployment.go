@@ -26,8 +26,8 @@ type deploymentInformer struct {
 }
 
 const (
-	SLACK_CHANNEL_ANNOTATION = "com.uswitch.hermod/slack"
-	revision                 = "deployment.kubernetes.io/revision"
+	slackChannelAnnotation = "com.uswitch.hermod/slack"
+	revision               = "deployment.kubernetes.io/revision"
 )
 
 func NewDeploymentWatcher(client *kubernetes.Clientset) *deploymentInformer {
@@ -101,7 +101,7 @@ func getSlackChannel(namespace string, indexer cache.Indexer) string {
 	nsAnnotations, _ := meta.NewAccessor().Annotations(nsResource.(runtime.Object))
 
 	for k, v := range nsAnnotations {
-		if k == SLACK_CHANNEL_ANNOTATION {
+		if k == slackChannelAnnotation {
 			return v
 		}
 	}

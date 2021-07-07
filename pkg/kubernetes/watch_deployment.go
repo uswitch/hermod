@@ -74,7 +74,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 
 	// detecting the deployment rollout
 	if deploymentOld.GetAnnotations()[revision] != deploymentNew.GetAnnotations()[revision] && deploymentNew.Annotations[hermodAnnotation] != hermodProgressingState {
-		msg := fmt.Sprintf("Rolling out Deployment `%s` in namespace `%s`.", deploymentNew.Name, deploymentNew.Namespace)
+		msg := fmt.Sprintf("Rolling out Deployment `%s` in namespace `%s` on `%s` cluster.", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 		log.Infof(msg)
 		err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodProgressingState)
 		if err != nil {
@@ -112,7 +112,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			if err != nil {
 				log.Errorf("failed to add annotation: %v", err)
 			}
-			msg := fmt.Sprintf("Rollout for Deployment `%s` Successful.", deploymentNew.Name)
+			msg := fmt.Sprintf("Rollout for Deployment `%s` on `%s` cluster is successful.", deploymentNew.Name, getClusterName())
 			log.Infof(msg)
 
 			// send message to slack
@@ -219,7 +219,7 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 	// construct error message
 	var errorString []string
 
-	errorText := fmt.Sprintf("Rollout for Deployment `%s` (RS: `%s`) failed after `%v` seconds.\nGot the following errors:", newDeployment.Name, rs.Name, *newDeployment.Spec.ProgressDeadlineSeconds)
+	errorText := fmt.Sprintf("Rollout for Deployment `%s` (RS: `%s`) failed after `%v` seconds on the `%s` cluster.\nGot the following errors:", newDeployment.Name, rs.Name, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName())
 	errorString = append(errorString, errorText)
 
 	// Get errors from Replicaset

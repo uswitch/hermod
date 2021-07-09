@@ -105,14 +105,15 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 		deploymentNew.Generation == deploymentNew.Status.ObservedGeneration &&
 		deploymentNew.Status.Replicas == deploymentNew.Status.ReadyReplicas &&
 		deploymentNew.Status.UpdatedReplicas == deploymentNew.Status.ReadyReplicas &&
-		*deploymentNew.Spec.Replicas == deploymentNew.Status.ReadyReplicas {
+		*deploymentNew.Spec.Replicas == deploymentNew.Status.ReadyReplicas &&
+		(deploymentNew.Annotations[hermodAnnotation] == hermodFailState || deploymentNew.Annotations[hermodAnnotation] == hermodProgressingState) {
 
 		if deploymentNew.Annotations[hermodAnnotation] != hermodPassState {
 			err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodPassState)
 			if err != nil {
 				log.Errorf("failed to add annotation: %v", err)
 			}
-			msg := fmt.Sprintf("Rollout for Deployment `%s` on `%s` cluster is successful.", deploymentNew.Name, getClusterName())
+			msg := fmt.Sprintf("Rollout for Deployment `%s` in `%s` on `%s` cluster is successful.", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 			log.Infof(msg)
 
 			// send message to slack

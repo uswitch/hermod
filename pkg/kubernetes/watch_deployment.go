@@ -106,8 +106,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 		deploymentNew.Status.Replicas == deploymentNew.Status.ReadyReplicas &&
 		deploymentNew.Status.UpdatedReplicas == deploymentNew.Status.ReadyReplicas &&
 		*deploymentNew.Spec.Replicas == deploymentNew.Status.ReadyReplicas &&
-		(deploymentNew.Annotations[hermodAnnotation] == hermodFailState || deploymentNew.Annotations[hermodAnnotation] == hermodProgressingState) {
-
+		deploymentNew.Annotations[hermodAnnotation] != "" {
 		if deploymentNew.Annotations[hermodAnnotation] != hermodPassState {
 			err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodPassState)
 			if err != nil {
@@ -220,7 +219,7 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 	// construct error message
 	var errorString []string
 
-	errorText := fmt.Sprintf("Rollout for Deployment `%s` (RS: `%s`) failed after `%v` seconds on the `%s` cluster.\nGot the following errors:", newDeployment.Name, rs.Name, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName())
+	errorText := fmt.Sprintf("Rollout for Deployment `%s` (RS: `%s`) in %s namespace failed after `%v` seconds on the `%s` cluster.\nGot the following errors:", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName())
 	errorString = append(errorString, errorText)
 
 	// Get errors from Replicaset

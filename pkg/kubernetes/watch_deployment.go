@@ -112,7 +112,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			if err != nil {
 				log.Errorf("failed to add annotation: %v", err)
 			}
-			msg := fmt.Sprintf("Rollout for Deployment `%s` in `%s` on `%s` cluster is successful.", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
+			msg := fmt.Sprintf("Rollout for Deployment `%s` in `%s` namespace on `%s` cluster is successful.", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 			log.Infof(msg)
 
 			// send message to slack

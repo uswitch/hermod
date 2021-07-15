@@ -203,7 +203,7 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 	// Find Replicaset based on labels and given revision in annotation
 	rs, err := getReplicaSet(ctx, client, namespace, labelSelector, newDeployment.Annotations[revision])
 	if err != nil {
-		return "", err
+		return fmt.Sprintf("failed to get the replicaset: %v", err), err
 	}
 
 	// Get Replicaset Labels
@@ -213,7 +213,7 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 	// Get list of Pods based on ReplicaSet labels
 	pods, err := getPods(ctx, client, namespace, labelSelector)
 	if err != nil {
-		return "", err
+		return fmt.Sprintf("failed to get the pods: %v", err), err
 	}
 
 	// construct error message
@@ -268,7 +268,7 @@ func getReplicaSet(ctx context.Context, client *kubernetes.Clientset, namespace 
 
 	rs, err := client.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
-		return appsv1.ReplicaSet{}, err
+		return appsv1.ReplicaSet{}, fmt.Errorf("failed to get the replicaset: %v", err)
 	}
 	for _, rs := range rs.Items {
 		if rs.Annotations[revision] == revisionNumber {
@@ -283,7 +283,7 @@ func getPods(ctx context.Context, client *kubernetes.Clientset, namespace string
 	pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 
 	if err != nil {
-		return []corev1.Pod{}, err
+		return []corev1.Pod{}, fmt.Errorf("failed to get the pods: %v", err)
 	}
 	return pods.Items, nil
 }

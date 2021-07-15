@@ -196,9 +196,10 @@ func getSlackChannel(namespace string, indexer cache.Indexer) string {
 
 func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace string, newDeployment *appsv1.Deployment) (string, error) {
 
-	// Get Deployment Labels
-	deploymentLabels := newDeployment.GetLabels()
-	labelSelector := labels.FormatLabels(deploymentLabels)
+	// Get Pod Labels
+	podLabels := newDeployment.Spec.Template.Labels
+
+	labelSelector := labels.FormatLabels(podLabels)
 
 	// Find Replicaset based on labels and given revision in annotation
 	rs, err := getReplicaSet(ctx, client, namespace, labelSelector, newDeployment.Annotations[revision])

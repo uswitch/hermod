@@ -249,7 +249,7 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 
 	// delayed rollout
 	if len(errorList) == 0 {
-		errorText := fmt.Sprintf("Rollout for Deployment `%s` (RS: `%s`) in `%s` namespace is taking longer than `%v` seconds on the `%s` cluster.\n", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName())
+		errorText := fmt.Sprintf("Deployment `%s` (RS: `%s`) in `%s` namespace failed to reach desired replicas within `%v` seconds on the `%s` cluster, only `%v/%v` replicas are ready.\n", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName(), newDeployment.Status.ReadyReplicas, *newDeployment.Spec.Replicas)
 		return errorText, nil
 	}
 

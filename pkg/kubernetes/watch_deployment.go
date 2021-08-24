@@ -217,19 +217,15 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 		return fmt.Sprintf("failed to get the pods: %v", err), err
 	}
 
-	// construct error message
-	var errorString []string
-
-	errorText := fmt.Sprintf("Rollout for Deployment `%s` (RS: `%s`) in %s namespace failed after `%v` seconds on the `%s` cluster.\nGot the following errors:", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName())
-	errorString = append(errorString, errorText)
-
 	// Get errors from Replicaset
+	var errorList []string
+
 	if len(pods) == 0 {
 		rsConditions := rs.Status.Conditions
 		sort.Slice(rsConditions, func(i, j int) bool {
 			return rsConditions[i].LastTransitionTime.Before(&rsConditions[j].LastTransitionTime)
 		})
-		errorString = append(errorString, fmt.Sprintf("```%v```", rsConditions[len(rsConditions)-1].Message))
+		errorList = append(errorList, fmt.Sprintf("```%v```", rsConditions[len(rsConditions)-1].Message))
 	} else {
 
 		// Map is to avoid duplicate errors
@@ -244,9 +240,24 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 		}
 
 		for reason, message := range reasonMessageMap {
-			errorString = append(errorString, fmt.Sprintf("```\n* %s - %s\n```", reason, message))
+			errorList = append(errorList, fmt.Sprintf("```\n* %s - %s\n```", reason, message))
 		}
 	}
+
+	// construct error message
+	var errorString []string
+
+	// delayed rollout
+	if len(errorList) == 0 {
+		errorText := fmt.Sprintf("Deployment `%s` (RS: `%s`) in `%s` namespace failed to reach desired replicas within `%v` seconds on the `%s` cluster, only `%v/%v` replicas are ready.\n", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName(), newDeployment.Status.ReadyReplicas, *newDeployment.Spec.Replicas)
+		return errorText, nil
+	}
+
+	// errored rollout
+	errorText := fmt.Sprintf("Rollout for Deployment `%s` (RS: `%s`) in `%s` namespace failed after `%v` seconds on the `%s` cluster.\nGot the following errors:", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName())
+
+	errorString = append(errorString, errorText)
+	errorString = append(errorString, errorList...)
 
 	return strings.Join(errorString, "\n"), nil
 

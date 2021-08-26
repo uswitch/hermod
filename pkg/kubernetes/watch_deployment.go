@@ -237,6 +237,9 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 			// look for error message in Containers
 			reasonMessageMap = getResMsg(pod.Status.ContainerStatuses, reasonMessageMap)
 
+			// look for error message in Pod Conditions
+			reasonMessageMap = getResMsgFromPodConditions(pod.Status.Conditions, reasonMessageMap)
+
 		}
 
 		for reason, message := range reasonMessageMap {
@@ -261,6 +264,17 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 
 	return strings.Join(errorString, "\n"), nil
 
+}
+
+func getResMsgFromPodConditions(conditions []corev1.PodCondition, reasonMessageMap map[string]string) map[string]string {
+	for _, condition := range conditions {
+		// There are 3 types of Status: True, False, Unknown
+		// True means pod is all good, hence we are avoiding that block here
+		if condition.Status != corev1.ConditionTrue {
+			reasonMessageMap[condition.Reason] = condition.Message
+		}
+	}
+	return reasonMessageMap
 }
 
 func getResMsg(containerStatus []corev1.ContainerStatus, reasonMessageMap map[string]string) map[string]string {

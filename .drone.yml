@@ -3,7 +3,10 @@ workspace:
   path: src/github.com/uswitch/hermod
 
 pipeline:
-
+  test:
+    image: golang:1.16
+    commands:
+      - GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -v -cover $(go list ./...)
   build:
     image: golang:1.16
     commands:

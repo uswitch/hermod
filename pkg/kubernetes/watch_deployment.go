@@ -194,7 +194,7 @@ func getSlackChannel(namespace string, indexer cache.Indexer) string {
 
 }
 
-func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace string, newDeployment *appsv1.Deployment) (string, error) {
+func getErrorEvents(ctx context.Context, client kubernetes.Interface, namespace string, newDeployment *appsv1.Deployment) (string, error) {
 
 	// Get Pod Labels
 	podLabels := newDeployment.Spec.Template.Labels
@@ -232,13 +232,13 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 		reasonMessageMap := make(map[string]string)
 		for _, pod := range pods {
 			// look for error message in init Containers
-			reasonMessageMap = getResMsg(pod.Status.InitContainerStatuses, reasonMessageMap)
+			reasonMessageMap = getReasonMessageMapFromStatuses(pod.Status.InitContainerStatuses, reasonMessageMap)
 
 			// look for error message in Containers
-			reasonMessageMap = getResMsg(pod.Status.ContainerStatuses, reasonMessageMap)
+			reasonMessageMap = getReasonMessageMapFromStatuses(pod.Status.ContainerStatuses, reasonMessageMap)
 
 			// look for error message in Pod Conditions
-			reasonMessageMap = getResMsgFromPodConditions(pod.Status.Conditions, reasonMessageMap)
+			reasonMessageMap = getReasonMessageMapFromPodConditions(pod.Status.Conditions, reasonMessageMap)
 
 		}
 
@@ -266,7 +266,7 @@ func getErrorEvents(ctx context.Context, client *kubernetes.Clientset, namespace
 
 }
 
-func getResMsgFromPodConditions(conditions []corev1.PodCondition, reasonMessageMap map[string]string) map[string]string {
+func getReasonMessageMapFromPodConditions(conditions []corev1.PodCondition, reasonMessageMap map[string]string) map[string]string {
 	for _, condition := range conditions {
 		// There are 3 types of Status: True, False, Unknown
 		// True means pod is all good, hence we are avoiding that block here
@@ -277,7 +277,7 @@ func getResMsgFromPodConditions(conditions []corev1.PodCondition, reasonMessageM
 	return reasonMessageMap
 }
 
-func getResMsg(containerStatus []corev1.ContainerStatus, reasonMessageMap map[string]string) map[string]string {
+func getReasonMessageMapFromStatuses(containerStatus []corev1.ContainerStatus, reasonMessageMap map[string]string) map[string]string {
 	for _, status := range containerStatus {
 		if status.State.Waiting != nil {
 			if status.State.Waiting.Reason == "ContainerCreating" {
@@ -290,7 +290,7 @@ func getResMsg(containerStatus []corev1.ContainerStatus, reasonMessageMap map[st
 }
 
 // getReplicaSet will return associated replicaset with given deployment based on labelselctor & revision number
-func getReplicaSet(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string, revisionNumber string) (appsv1.ReplicaSet, error) {
+func getReplicaSet(ctx context.Context, client kubernetes.Interface, namespace string, labelSelector string, revisionNumber string) (appsv1.ReplicaSet, error) {
 
 	rs, err := client.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
@@ -305,9 +305,8 @@ func getReplicaSet(ctx context.Context, client *kubernetes.Clientset, namespace 
 }
 
 // getPods will return list of pods based on given label selectors
-func getPods(ctx context.Context, client *kubernetes.Clientset, namespace string, labelSelector string) ([]corev1.Pod, error) {
+func getPods(ctx context.Context, client kubernetes.Interface, namespace string, labelSelector string) ([]corev1.Pod, error) {
 	pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-
 	if err != nil {
 		return []corev1.Pod{}, fmt.Errorf("failed to get the pods: %v", err)
 	}

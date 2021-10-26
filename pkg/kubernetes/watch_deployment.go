@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -315,11 +317,24 @@ func getPods(ctx context.Context, client kubernetes.Interface, namespace string,
 
 // addAnnotation will add the hermod specific annotation to the deployment
 func addAnnotation(ctx context.Context, client *kubernetes.Clientset, namespace string, newDeployment *appsv1.Deployment, state string) error {
-	ann := newDeployment.ObjectMeta.Annotations
-	ann[hermodAnnotation] = state
-	newDeployment.ObjectMeta.Annotations = ann
+	// ann := newDeployment.ObjectMeta.Annotations
+	// ann[hermodAnnotation] = state
 
-	_, err := client.AppsV1().Deployments(namespace).Update(ctx, newDeployment, metav1.UpdateOptions{})
+	patch := map[string]interface{}{
+		"metadata": map[string]map[string]string{
+			"annotations": {
+				hermodAnnotation: state,
+			}}}
+
+	marshalledPatch, err := json.Marshal(patch)
+	if err != nil {
+		return fmt.Errorf("error marshalling data to json: %v", err)
+	}
+
+	// newDeployment.ObjectMeta.Annotations = ann
+	// newDeployment.ObjectMeta.ResourceVersion = ""
+	_, err = client.AppsV1().Deployments(namespace).Patch(ctx, newDeployment.Name, types.MergePatchType, marshalledPatch, metav1.PatchOptions{})
+	// _, err := client.AppsV1().Deployments(namespace).Update(ctx, newDeployment, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

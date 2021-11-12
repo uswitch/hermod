@@ -27,6 +27,9 @@ type deploymentInformer struct {
 const (
 	revision = "deployment.kubernetes.io/revision"
 
+	githubURLAnnotation = "service.rvu.co.uk/vcs-url"
+	githubSHAAnnotation = "service.rvu.co.uk/vcs-ref"
+
 	hermodStateAnnotation = "hermod.uswitch.com/state"
 
 	hermodPassState        = "pass"
@@ -158,6 +161,17 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			errorMsg, err := getErrorEvents(b.Context, b.client, deploymentNew.Namespace, updateDeployment)
 			if err != nil {
 				log.Errorf("failed to get the error events: %v", err)
+			}
+
+			repo := deploymentNew.GetAnnotations()[githubURLAnnotation]
+			sha := deploymentNew.GetAnnotations()[githubSHAAnnotation]
+			if repo != "" && sha != "" {
+				commit := fmt.Sprintf("*Commit:* %s/commit/%s", repo, sha)
+				pullRequest := fmt.Sprintf("*Pull Request, if applicable:* %s/pulls/?q=%s", repo, sha)
+
+				errorMsg = errorMsg + fmt.Sprintf("\n\n%s\n\n%s", commit, pullRequest)
+			} else {
+				errorMsg = errorMsg + "\n\n" + ":warning: *No Service Standard labels found, cannot link to Commit or Pull Request* :warning:"
 			}
 			log.Info(errorMsg)
 

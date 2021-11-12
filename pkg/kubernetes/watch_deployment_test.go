@@ -275,7 +275,7 @@ func TestGetErrorEvents(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output, _ := getErrorEvents(tt.args.ctx, client, tt.args.namespace, tt.args.newDeployment)
-			if output != tt.expectedOutput {
+			if ok := reflect.DeepEqual(output, tt.expectedOutput); !ok {
 				t.Errorf("getErrorEvents() = %v, expectedOutput %v", output, tt.expectedOutput)
 			}
 		})

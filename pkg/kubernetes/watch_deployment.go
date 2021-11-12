@@ -2,22 +2,15 @@ package kubernetes
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/uswitch/hermod/pkg/slack"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -32,15 +25,18 @@ type deploymentInformer struct {
 }
 
 const (
-	slackChannelAnnotation = "hermod.uswitch.com/slack"
-	revision               = "deployment.kubernetes.io/revision"
-	hermodAnnotation       = "hermod.uswitch.com/state"
+	revision = "deployment.kubernetes.io/revision"
+
+	hermodAlertAnnotation        = "hermod.uswitch.com/alert"
+	hermodStateAnnotation        = "hermod.uswitch.com/state"
+	hermodSlackChannelAnnotation = "hermod.uswitch.com/slack"
+
 	hermodPassState        = "pass"
 	hermodFailState        = "fail"
 	hermodProgressingState = "progressing"
 
-	progressDeadlineExceededReason = "ProgressDeadlineExceeded"
 	failedCreateReason             = "FailedCreate"
+	progressDeadlineExceededReason = "ProgressDeadlineExceeded"
 )
 
 func NewDeploymentWatcher(client *kubernetes.Clientset) *deploymentInformer {
@@ -68,14 +64,14 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 	}
 
 	// check if resourceversion are same
-	if deploymentOld.ResourceVersion == deploymentNew.ResourceVersion && deploymentNew.Annotations[hermodAnnotation] != hermodProgressingState {
+	if deploymentOld.ResourceVersion == deploymentNew.ResourceVersion && deploymentNew.Annotations[hermodStateAnnotation] != hermodProgressingState {
 		return
 	}
 
 	updateDeployment := deploymentNew.DeepCopy()
 
 	// detecting the deployment rollout
-	if deploymentOld.GetAnnotations()[revision] != deploymentNew.GetAnnotations()[revision] && deploymentNew.Annotations[hermodAnnotation] != hermodProgressingState {
+	if deploymentOld.GetAnnotations()[revision] != deploymentNew.GetAnnotations()[revision] && deploymentNew.Annotations[hermodStateAnnotation] != hermodProgressingState {
 		msg := fmt.Sprintf("Rolling out Deployment `%s` in namespace `%s` on `%s` cluster.", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 		log.Infof(msg)
 		err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodProgressingState)
@@ -108,8 +104,9 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 		deploymentNew.Status.Replicas == deploymentNew.Status.ReadyReplicas &&
 		deploymentNew.Status.UpdatedReplicas == deploymentNew.Status.ReadyReplicas &&
 		*deploymentNew.Spec.Replicas == deploymentNew.Status.ReadyReplicas &&
-		deploymentNew.Annotations[hermodAnnotation] != "" {
-		if deploymentNew.Annotations[hermodAnnotation] != hermodPassState {
+		deploymentNew.Annotations[hermodStateAnnotation] != "" {
+
+		if deploymentNew.Annotations[hermodStateAnnotation] != hermodPassState {
 			err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodPassState)
 			if err != nil {
 				log.Errorf("failed to add annotation: %v", err)
@@ -133,7 +130,8 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 		deploymentNewConditions[len(deploymentNewConditions)-1].Reason != deploymentOldConditions[len(deploymentOldConditions)-1].Reason &&
 		(deploymentNewConditions[len(deploymentNewConditions)-1].Reason == progressDeadlineExceededReason ||
 			deploymentNewConditions[len(deploymentNewConditions)-1].Reason == failedCreateReason) {
-		if deploymentNew.Annotations[hermodAnnotation] != hermodFailState {
+
+		if deploymentNew.Annotations[hermodStateAnnotation] != hermodFailState {
 			err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodFailState)
 			if err != nil {
 				log.Errorf("failed to add annotation: %v", err)
@@ -153,7 +151,6 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			return
 		}
 	}
-
 }
 
 func (b *deploymentInformer) Run(ctx context.Context, stopCh <-chan struct{}) {
@@ -180,158 +177,4 @@ func watchNamespaces(context context.Context, client *kubernetes.Clientset) cach
 	log.Info("namespace cache controller synced")
 
 	return indexer
-}
-
-func getSlackChannel(namespace string, indexer cache.Indexer) string {
-	nsResource, _, _ := indexer.GetByKey(namespace)
-	nsAnnotations, _ := meta.NewAccessor().Annotations(nsResource.(runtime.Object))
-
-	for k, v := range nsAnnotations {
-		if k == slackChannelAnnotation {
-			return v
-		}
-	}
-
-	return ""
-
-}
-
-func getErrorEvents(ctx context.Context, client kubernetes.Interface, namespace string, newDeployment *appsv1.Deployment) (string, error) {
-
-	// Get Pod Labels
-	podLabels := newDeployment.Spec.Template.Labels
-
-	labelSelector := labels.FormatLabels(podLabels)
-
-	// Find Replicaset based on labels and given revision in annotation
-	rs, err := getReplicaSet(ctx, client, namespace, labelSelector, newDeployment.Annotations[revision])
-	if err != nil {
-		return fmt.Sprintf("failed to get the replicaset: %v", err), err
-	}
-
-	// Get Replicaset Labels
-	rslabels := rs.GetLabels()
-	labelSelector = labels.FormatLabels(rslabels)
-
-	// Get list of Pods based on ReplicaSet labels
-	pods, err := getPods(ctx, client, namespace, labelSelector)
-	if err != nil {
-		return fmt.Sprintf("failed to get the pods: %v", err), err
-	}
-
-	// Get errors from Replicaset
-	var errorList []string
-
-	if len(pods) == 0 {
-		rsConditions := rs.Status.Conditions
-		sort.Slice(rsConditions, func(i, j int) bool {
-			return rsConditions[i].LastTransitionTime.Before(&rsConditions[j].LastTransitionTime)
-		})
-		errorList = append(errorList, fmt.Sprintf("```%v```", rsConditions[len(rsConditions)-1].Message))
-	} else {
-
-		// Map is to avoid duplicate errors
-		reasonMessageMap := make(map[string]string)
-		for _, pod := range pods {
-			// look for error message in init Containers
-			reasonMessageMap = getReasonMessageMapFromStatuses(pod.Status.InitContainerStatuses, reasonMessageMap)
-
-			// look for error message in Containers
-			reasonMessageMap = getReasonMessageMapFromStatuses(pod.Status.ContainerStatuses, reasonMessageMap)
-
-			// look for error message in Pod Conditions
-			reasonMessageMap = getReasonMessageMapFromPodConditions(pod.Status.Conditions, reasonMessageMap)
-
-		}
-
-		for reason, message := range reasonMessageMap {
-			errorList = append(errorList, fmt.Sprintf("```\n* %s - %s\n```", reason, message))
-		}
-	}
-
-	// construct error message
-	var errorString []string
-
-	// delayed rollout
-	if len(errorList) == 0 {
-		errorText := fmt.Sprintf("Deployment `%s` (RS: `%s`) in `%s` namespace failed to reach desired replicas within `%v` seconds on the `%s` cluster, only `%v/%v` replicas are ready.\n", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName(), newDeployment.Status.ReadyReplicas, *newDeployment.Spec.Replicas)
-		return errorText, nil
-	}
-
-	// errored rollout
-	errorText := fmt.Sprintf("Rollout for Deployment `%s` (RS: `%s`) in `%s` namespace failed after `%v` seconds on the `%s` cluster.\nGot the following errors:", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName())
-
-	errorString = append(errorString, errorText)
-	errorString = append(errorString, errorList...)
-
-	return strings.Join(errorString, "\n"), nil
-
-}
-
-func getReasonMessageMapFromPodConditions(conditions []corev1.PodCondition, reasonMessageMap map[string]string) map[string]string {
-	for _, condition := range conditions {
-		// There are 3 types of Status: True, False, Unknown
-		// True means pod is all good, hence we are avoiding that block here
-		if condition.Status != corev1.ConditionTrue {
-			reasonMessageMap[condition.Reason] = condition.Message
-		}
-	}
-	return reasonMessageMap
-}
-
-func getReasonMessageMapFromStatuses(containerStatus []corev1.ContainerStatus, reasonMessageMap map[string]string) map[string]string {
-	for _, status := range containerStatus {
-		if status.State.Waiting != nil {
-			if status.State.Waiting.Reason == "ContainerCreating" {
-				continue
-			}
-			reasonMessageMap[status.State.Waiting.Reason] = status.State.Waiting.Message
-		}
-	}
-	return reasonMessageMap
-}
-
-// getReplicaSet will return associated replicaset with given deployment based on labelselctor & revision number
-func getReplicaSet(ctx context.Context, client kubernetes.Interface, namespace string, labelSelector string, revisionNumber string) (appsv1.ReplicaSet, error) {
-
-	rs, err := client.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-	if err != nil {
-		return appsv1.ReplicaSet{}, fmt.Errorf("failed to get the replicaset: %v", err)
-	}
-	for _, rs := range rs.Items {
-		if rs.Annotations[revision] == revisionNumber {
-			return rs, nil
-		}
-	}
-	return appsv1.ReplicaSet{}, nil
-}
-
-// getPods will return list of pods based on given label selectors
-func getPods(ctx context.Context, client kubernetes.Interface, namespace string, labelSelector string) ([]corev1.Pod, error) {
-	pods, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
-	if err != nil {
-		return []corev1.Pod{}, fmt.Errorf("failed to get the pods: %v", err)
-	}
-	return pods.Items, nil
-}
-
-// addAnnotation will add the hermod specific annotation to the deployment
-func addAnnotation(ctx context.Context, client *kubernetes.Clientset, namespace string, newDeployment *appsv1.Deployment, state string) error {
-
-	patch := map[string]interface{}{
-		"metadata": map[string]map[string]string{
-			"annotations": {
-				hermodAnnotation: state,
-			}}}
-
-	marshalledPatch, err := json.Marshal(patch)
-	if err != nil {
-		return fmt.Errorf("error marshalling data to json: %v", err)
-	}
-
-	_, err = client.AppsV1().Deployments(namespace).Patch(ctx, newDeployment.Name, types.MergePatchType, marshalledPatch, metav1.PatchOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
 }

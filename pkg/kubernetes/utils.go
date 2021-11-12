@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"os"
 
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -27,11 +28,18 @@ func getSlackChannel(namespace string, indexer cache.Indexer) string {
 	nsResource, _, _ := indexer.GetByKey(namespace)
 	nsAnnotations, _ := meta.NewAccessor().Annotations(nsResource.(runtime.Object))
 
-	for k, v := range nsAnnotations {
-		if k == hermodSlackChannelAnnotation {
-			return v
-		}
+	return nsAnnotations[hermodSlackChannelAnnotation]
+}
+
+func getAlertLevel(deployment *appsv1.Deployment, indexer cache.Indexer) string {
+	alertLevel := deployment.GetAnnotations()[hermodAlertAnnotation]
+
+	if alertLevel == "" {
+		nsResource, _, _ := indexer.GetByKey(deployment.Namespace)
+		nsAnnotations, _ := meta.NewAccessor().Annotations(nsResource.(runtime.Object))
+
+		alertLevel = nsAnnotations[hermodAlertAnnotation]
 	}
 
-	return ""
+	return alertLevel
 }

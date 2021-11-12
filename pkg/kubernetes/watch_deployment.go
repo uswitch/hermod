@@ -62,7 +62,12 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 	}
 
 	// get slack channel name from namespace annotation
-	slackChannel := getSlackChannel(deploymentNew.Namespace, b.namespaceIndexer)
+	slackChannel, err := getSlackChannel(deploymentNew.Namespace, b.namespaceIndexer)
+	if err != nil {
+		log.Errorf("failed to get slack channel for namespace: %s\n", err)
+		return
+	}
+
 	if slackChannel == "" {
 		log.Debugf("no hermod slack channel specified for namespace: %s\n", deploymentNew.Namespace)
 		return
@@ -70,7 +75,11 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 
 	updateDeployment := deploymentNew.DeepCopy()
 
-	alertLevel := getAlertLevel(deploymentNew, b.namespaceIndexer)
+	alertLevel, err := getAlertLevel(deploymentNew, b.namespaceIndexer)
+	if err != nil {
+		log.Errorf("failed to get alert level for deployment: %s\n", err)
+		return
+	}
 
 	// detecting the deployment rollout
 	if deploymentOld.GetAnnotations()[revision] != deploymentNew.GetAnnotations()[revision] && deploymentNew.Annotations[hermodStateAnnotation] != hermodProgressingState {

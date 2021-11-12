@@ -27,9 +27,7 @@ type deploymentInformer struct {
 const (
 	revision = "deployment.kubernetes.io/revision"
 
-	hermodAlertAnnotation        = "hermod.uswitch.com/alert"
-	hermodStateAnnotation        = "hermod.uswitch.com/state"
-	hermodSlackChannelAnnotation = "hermod.uswitch.com/slack"
+	hermodStateAnnotation = "hermod.uswitch.com/state"
 
 	hermodPassState        = "pass"
 	hermodFailState        = "fail"

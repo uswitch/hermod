@@ -11,7 +11,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-const clusterNameEnv = "CLUSTER_NAME"
+const (
+	clusterNameEnv = "CLUSTER_NAME"
+
+	hermodAlertAnnotation        = "hermod.uswitch.com/alert"
+	hermodSlackChannelAnnotation = "hermod.uswitch.com/slack"
+)
 
 func CreateClientConfig(kubeConfigPath string) (*rest.Config, error) {
 	if kubeConfigPath == "" {

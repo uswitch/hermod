@@ -56,15 +56,15 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 	deploymentOld, _ := old.(*appsv1.Deployment)
 	deploymentNew, _ := new.(*appsv1.Deployment)
 
+	// check if resourceversion are same
+	if deploymentOld.ResourceVersion == deploymentNew.ResourceVersion && deploymentNew.Annotations[hermodStateAnnotation] != hermodProgressingState {
+		return
+	}
+
 	// get slack channel name from namespace annotation
 	slackChannel := getSlackChannel(deploymentNew.Namespace, b.namespaceIndexer)
 	if slackChannel == "" {
 		log.Debugf("no hermod slack channel specified for namespace: %s\n", deploymentNew.Namespace)
-		return
-	}
-
-	// check if resourceversion are same
-	if deploymentOld.ResourceVersion == deploymentNew.ResourceVersion && deploymentNew.Annotations[hermodStateAnnotation] != hermodProgressingState {
 		return
 	}
 

@@ -35,6 +35,8 @@ const (
 	hermodFailState        = "fail"
 	hermodProgressingState = "progressing"
 
+	hermodAlertFailure = "failure"
+
 	failedCreateReason             = "FailedCreate"
 	progressDeadlineExceededReason = "ProgressDeadlineExceeded"
 )
@@ -70,6 +72,8 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 
 	updateDeployment := deploymentNew.DeepCopy()
 
+	alertLevel := getAlertLevel(deploymentNew, b.namespaceIndexer)
+
 	// detecting the deployment rollout
 	if deploymentOld.GetAnnotations()[revision] != deploymentNew.GetAnnotations()[revision] && deploymentNew.Annotations[hermodStateAnnotation] != hermodProgressingState {
 		msg := fmt.Sprintf("Rolling out Deployment `%s` in namespace `%s` on `%s` cluster.", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
@@ -79,12 +83,16 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			log.Errorf("failed to add annotation: %v", err)
 		}
 
-		// send message to slack
-		err = b.SlackClient.SendMessage(slackChannel, msg, slack.OrangeColor)
-		if err != nil {
-			log.Errorf("failed to send slack message: %v", err)
+		// Send message if alertLevel isn't set to Failure only
+		if alertLevel != hermodAlertFailure {
+			// send message to slack
+			err = b.SlackClient.SendMessage(slackChannel, msg, slack.OrangeColor)
+			if err != nil {
+				log.Errorf("failed to send slack message: %v", err)
+			}
+
+			return
 		}
-		return
 	}
 
 	// Get the DeploymentCondition and sort them based on time
@@ -114,11 +122,15 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			msg := fmt.Sprintf("Rollout for Deployment `%s` in `%s` namespace on `%s` cluster is successful.", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 			log.Infof(msg)
 
-			// send message to slack
-			err = b.SlackClient.SendMessage(slackChannel, msg, slack.GreenColor)
-			if err != nil {
-				log.Errorf("failed to send slack message: %v", err)
+			// Send message if alertLevel isn't set to Failure only
+			if alertLevel != hermodAlertFailure {
+				// send message to slack
+				err = b.SlackClient.SendMessage(slackChannel, msg, slack.GreenColor)
+				if err != nil {
+					log.Errorf("failed to send slack message: %v", err)
+				}
 			}
+
 			return
 		}
 	}

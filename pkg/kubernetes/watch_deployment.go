@@ -22,6 +22,10 @@ type deploymentInformer struct {
 	SlackClient      *slack.Client
 	Context          context.Context // TODO: Make it private if not needed in any other package
 	namespaceIndexer cache.Indexer
+
+	hermodGithubRepoAnnotation      string
+	hermodGithubCommitSHAAnnotation string
+	githubAnnotationWarning         bool
 }
 
 const (
@@ -39,8 +43,13 @@ const (
 	progressDeadlineExceededReason = "ProgressDeadlineExceeded"
 )
 
-func NewDeploymentWatcher(client *kubernetes.Clientset) *deploymentInformer {
-	deploymentInformer := &deploymentInformer{client: client}
+func NewDeploymentWatcher(client *kubernetes.Clientset, hermodGithubRepoAnnotation, hermodGithubCommitSHAAnnotation string, githubAnnotationWarning bool) *deploymentInformer {
+	deploymentInformer := &deploymentInformer{
+		client:                          client,
+		hermodGithubRepoAnnotation:      hermodGithubRepoAnnotation,
+		hermodGithubCommitSHAAnnotation: hermodGithubCommitSHAAnnotation,
+		githubAnnotationWarning:         githubAnnotationWarning,
+	}
 	watcher := cache.NewListWatchFromClient(client.AppsV1().RESTClient(), "deployments", "", fields.Everything())
 	deploymentInformer.store, deploymentInformer.controller = cache.NewIndexerInformer(watcher, &appsv1.Deployment{}, time.Minute, deploymentInformer, cache.Indexers{})
 	return deploymentInformer
@@ -83,7 +92,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 
 	// detecting the deployment rollout
 	if deploymentOld.GetAnnotations()[revision] != deploymentNew.GetAnnotations()[revision] && deploymentNew.Annotations[hermodStateAnnotation] != hermodProgressingState {
-		msg := fmt.Sprintf("Rolling out Deployment `%s` in namespace `%s` on `%s` cluster.", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
+		msg := fmt.Sprintf("*Rolling out Deployment `%s` in namespace `%s` on `%s` cluster.*", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 		log.Infof(msg)
 		err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodProgressingState)
 		if err != nil {
@@ -126,7 +135,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			if err != nil {
 				log.Errorf("failed to add annotation: %v", err)
 			}
-			msg := fmt.Sprintf("Rollout for Deployment `%s` in `%s` namespace on `%s` cluster is successful.", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
+			msg := fmt.Sprintf("*Rollout for Deployment `%s` in `%s` namespace on `%s` cluster is successful.*", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 			log.Infof(msg)
 
 			// Send message if alertLevel isn't set to Failure only
@@ -158,6 +167,17 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			errorMsg, err := getErrorEvents(b.Context, b.client, deploymentNew.Namespace, updateDeployment)
 			if err != nil {
 				log.Errorf("failed to get the error events: %v", err)
+			}
+
+			repo := deploymentNew.GetAnnotations()[b.hermodGithubRepoAnnotation]
+			sha := deploymentNew.GetAnnotations()[b.hermodGithubCommitSHAAnnotation]
+			if repo != "" && sha != "" {
+				commit := fmt.Sprintf("*Commit:* %s/commit/%s", repo, sha)
+				pullRequest := fmt.Sprintf("*Pull Request, if applicable:* %s/pulls/?q=%s", repo, sha)
+
+				errorMsg = errorMsg + fmt.Sprintf("\n\n%s\n\n%s", commit, pullRequest)
+			} else if b.githubAnnotationWarning {
+				errorMsg = errorMsg + "\n\n" + ":warning: *Could not find annotations" + fmt.Sprintf(" `%s` and `%s` ", b.hermodGithubRepoAnnotation, b.hermodGithubCommitSHAAnnotation) + ", cannot link to Commit or Pull Request*"
 			}
 			log.Info(errorMsg)
 

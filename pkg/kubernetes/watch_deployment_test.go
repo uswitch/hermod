@@ -252,7 +252,7 @@ func TestGetErrorEvents(t *testing.T) {
 	}
 	client := k8sfake.NewSimpleClientset(&podo, &deployment, &rs)
 
-	outputString := fmt.Sprintf("Rollout for Deployment `test` (RS: `test`) in `test` namespace failed after `10` seconds on the `` cluster.\nGot the following errors:\n```\n* InitContainerStatusReason - InitContainerStatusMessage\n```\n```\n* containerStatusReason - containerStatusMessage\n```\n```\n* conditionReason - conditionMessage\n```")
+	outputString := fmt.Sprintf("*Rollout for Deployment `test` (RS: `test`) in `test` namespace failed after `10` seconds on the `` cluster.*\n\n*Retrieved the following errors:*\n```\n* InitContainerStatusReason - InitContainerStatusMessage\n```\n```\n* containerStatusReason - containerStatusMessage\n```\n```\n* conditionReason - conditionMessage\n```")
 	type args struct {
 		ctx           context.Context
 		namespace     string
@@ -275,7 +275,7 @@ func TestGetErrorEvents(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output, _ := getErrorEvents(tt.args.ctx, client, tt.args.namespace, tt.args.newDeployment)
-			if output != tt.expectedOutput {
+			if ok := reflect.DeepEqual(output, tt.expectedOutput); !ok {
 				t.Errorf("getErrorEvents() = %v, expectedOutput %v", output, tt.expectedOutput)
 			}
 		})

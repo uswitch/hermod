@@ -68,12 +68,12 @@ func getErrorEvents(ctx context.Context, client kubernetes.Interface, namespace 
 
 	// delayed rollout
 	if len(errorList) == 0 {
-		errorText := fmt.Sprintf("Deployment `%s` (RS: `%s`) in `%s` namespace failed to reach desired replicas within `%v` seconds on the `%s` cluster, only `%v/%v` replicas are ready.\n", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName(), newDeployment.Status.ReadyReplicas, *newDeployment.Spec.Replicas)
+		errorText := fmt.Sprintf("*Deployment `%s` (RS: `%s`) in `%s` namespace failed to reach desired replicas within `%v` seconds on the `%s` cluster, only `%v/%v` replicas are ready.*\n", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName(), newDeployment.Status.ReadyReplicas, *newDeployment.Spec.Replicas)
 		return errorText, nil
 	}
 
 	// errored rollout
-	errorText := fmt.Sprintf("Rollout for Deployment `%s` (RS: `%s`) in `%s` namespace failed after `%v` seconds on the `%s` cluster.\nGot the following errors:", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName())
+	errorText := fmt.Sprintf("*Rollout for Deployment `%s` (RS: `%s`) in `%s` namespace failed after `%v` seconds on the `%s` cluster.*\n\n*Retrieved the following errors:*", newDeployment.Name, rs.Name, newDeployment.Namespace, *newDeployment.Spec.ProgressDeadlineSeconds, getClusterName())
 
 	errorString = append(errorString, errorText)
 	errorString = append(errorString, errorList...)

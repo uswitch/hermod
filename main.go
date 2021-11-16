@@ -15,6 +15,11 @@ import (
 type options struct {
 	kubeconfig string
 	logLevel   string
+
+	hermodGithubRepoAnnotation      string
+	hermodGithubCommitSHAAnnotation string
+
+	githubAnnotationWarning bool
 }
 
 func main() {
@@ -22,6 +27,9 @@ func main() {
 	opts := &options{}
 	kingpin.Flag("kubeconfig", "Path to kubeconfig.").StringVar(&opts.kubeconfig)
 	kingpin.Flag("level", "Log level: debug, info, warn, error.").Default("info").EnumVar(&opts.logLevel, "debug", "info", "warn", "error")
+	kingpin.Flag("repo-url-annotation", "Annotation used to retrieve Github repository the deployment is from").Default("hermod.uswitch.com/gitrepo").StringVar(&opts.hermodGithubRepoAnnotation)
+	kingpin.Flag("commit-sha-annotation", "Annotation used to retrieve Git SHA responsible for the latest deployment").Default("hermod.uswitch.com/gitsha").StringVar(&opts.hermodGithubCommitSHAAnnotation)
+	kingpin.Flag("git-annotation-warning", "Warn for missing `repo-url-annotation` and `commit-sha-annotation values").BoolVar(&opts.githubAnnotationWarning)
 	kingpin.Parse()
 
 	configureLogger(opts.logLevel)
@@ -45,7 +53,7 @@ func main() {
 
 	ctx := context.Background()
 
-	watcher := kubepkg.NewDeploymentWatcher(kubeClient)
+	watcher := kubepkg.NewDeploymentWatcher(kubeClient, opts.hermodGithubRepoAnnotation, opts.hermodGithubCommitSHAAnnotation, opts.githubAnnotationWarning)
 
 	watcher.Context = ctx
 	watcher.SlackClient = slackClient

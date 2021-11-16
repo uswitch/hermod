@@ -22,13 +22,14 @@ type deploymentInformer struct {
 	SlackClient      *slack.Client
 	Context          context.Context // TODO: Make it private if not needed in any other package
 	namespaceIndexer cache.Indexer
+
+	hermodGithubRepoAnnotation      string
+	hermodGithubCommitSHAAnnotation string
+	githubAnnotationWarning         bool
 }
 
 const (
 	revision = "deployment.kubernetes.io/revision"
-
-	githubURLAnnotation = "service.rvu.co.uk/vcs-url"
-	githubSHAAnnotation = "service.rvu.co.uk/vcs-ref"
 
 	hermodStateAnnotation = "hermod.uswitch.com/state"
 
@@ -42,8 +43,13 @@ const (
 	progressDeadlineExceededReason = "ProgressDeadlineExceeded"
 )
 
-func NewDeploymentWatcher(client *kubernetes.Clientset) *deploymentInformer {
-	deploymentInformer := &deploymentInformer{client: client}
+func NewDeploymentWatcher(client *kubernetes.Clientset, hermodGithubRepoAnnotation, hermodGithubCommitSHAAnnotation string, githubAnnotationWarning bool) *deploymentInformer {
+	deploymentInformer := &deploymentInformer{
+		client:                          client,
+		hermodGithubRepoAnnotation:      hermodGithubRepoAnnotation,
+		hermodGithubCommitSHAAnnotation: hermodGithubCommitSHAAnnotation,
+		githubAnnotationWarning:         githubAnnotationWarning,
+	}
 	watcher := cache.NewListWatchFromClient(client.AppsV1().RESTClient(), "deployments", "", fields.Everything())
 	deploymentInformer.store, deploymentInformer.controller = cache.NewIndexerInformer(watcher, &appsv1.Deployment{}, time.Minute, deploymentInformer, cache.Indexers{})
 	return deploymentInformer
@@ -163,15 +169,15 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 				log.Errorf("failed to get the error events: %v", err)
 			}
 
-			repo := deploymentNew.GetAnnotations()[githubURLAnnotation]
-			sha := deploymentNew.GetAnnotations()[githubSHAAnnotation]
+			repo := deploymentNew.GetAnnotations()[b.hermodGithubRepoAnnotation]
+			sha := deploymentNew.GetAnnotations()[b.hermodGithubCommitSHAAnnotation]
 			if repo != "" && sha != "" {
 				commit := fmt.Sprintf("*Commit:* %s/commit/%s", repo, sha)
 				pullRequest := fmt.Sprintf("*Pull Request, if applicable:* %s/pulls/?q=%s", repo, sha)
 
 				errorMsg = errorMsg + fmt.Sprintf("\n\n%s\n\n%s", commit, pullRequest)
-			} else {
-				errorMsg = errorMsg + "\n\n" + ":warning: *No Service Standard labels found, cannot link to Commit or Pull Request* :warning:"
+			} else if b.githubAnnotationWarning {
+				errorMsg = errorMsg + "\n\n" + ":warning: *Could not find annotations" + fmt.Sprintf(" `%s` and `%s` ", b.hermodGithubRepoAnnotation, b.hermodGithubCommitSHAAnnotation) + ", cannot link to Commit or Pull Request*"
 			}
 			log.Info(errorMsg)
 

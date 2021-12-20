@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	kubepkg "github.com/uswitch/hermod/pkg/kubernetes"
+	sentryClient "github.com/uswitch/hermod/pkg/sentry"
 	"github.com/uswitch/hermod/pkg/slack"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"k8s.io/client-go/kubernetes"
@@ -33,6 +34,8 @@ func main() {
 	kingpin.Parse()
 
 	configureLogger(opts.logLevel)
+
+	sentryClient.SetupSentry()
 
 	kubeConfig, err := kubepkg.CreateClientConfig(opts.kubeconfig)
 	if err != nil {

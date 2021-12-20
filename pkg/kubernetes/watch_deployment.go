@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/uswitch/hermod/pkg/slack"
 	appsv1 "k8s.io/api/apps/v1"
@@ -105,8 +106,8 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			err = b.SlackClient.SendMessage(slackChannel, msg, slack.OrangeColor)
 			if err != nil {
 				log.Errorf("failed to send slack message: %v", err)
+				sentry.CaptureException(err)
 			}
-
 			return
 		}
 	}

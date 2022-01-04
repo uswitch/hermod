@@ -146,6 +146,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 				err = b.SlackClient.SendMessage(slackChannel, msg, slack.GreenColor)
 				if err != nil {
 					log.Errorf("failed to send slack message: %v", err)
+					sentry.CaptureException(err)
 				}
 			}
 
@@ -187,6 +188,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			err = b.SlackClient.SendMessage(slackChannel, errorMsg, slack.RedColor)
 			if err != nil {
 				log.Errorf("failed to send slack message: %v", err)
+				sentry.CaptureException(err)
 			}
 
 			return

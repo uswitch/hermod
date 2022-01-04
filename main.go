@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -44,23 +45,26 @@ func main() {
 
 	kubeConfig, err := kubepkg.CreateClientConfig(opts.kubeconfig)
 	if err != nil {
-		sentry.CaptureException(err)
+		message := fmt.Sprintf("error creating kube client config: %s", err)
+		sentry.CaptureMessage(message)
 		sentryClient.Cleanup()
-		log.Fatalf("error creating kube client config: %s", err)
+		log.Fatalf(message)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		sentry.CaptureException(err)
+		message := fmt.Sprintf("Error building kubernetes clientset: %s", err.Error())
+		sentry.CaptureMessage(message)
 		sentryClient.Cleanup()
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		log.Fatalf(message)
 	}
 
 	slackClient, err := slack.NewClient()
 	if err != nil {
-		sentry.CaptureException(err)
+		message := fmt.Sprintf("Error building slack client: %s", err.Error())
+		sentry.CaptureMessage(message)
 		sentryClient.Cleanup()
-		log.Fatalf("Error building slack client: %s", err.Error())
+		log.Fatalf(message)
 	}
 
 	stopCh := make(chan os.Signal, 1)

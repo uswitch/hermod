@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"time"
 
@@ -193,7 +194,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 	}
 }
 
-func (b *deploymentInformer) Run(ctx context.Context, stopCh <-chan struct{}) {
+func (b *deploymentInformer) Run(ctx context.Context, stopCh <-chan os.Signal) {
 	go b.controller.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), b.controller.HasSynced)
 	log.Info("deployment cache controller synced")

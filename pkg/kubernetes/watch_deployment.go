@@ -3,9 +3,11 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/uswitch/hermod/pkg/slack"
 	appsv1 "k8s.io/api/apps/v1"
@@ -104,9 +106,10 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			// send message to slack
 			err = b.SlackClient.SendMessage(slackChannel, msg, slack.OrangeColor)
 			if err != nil {
-				log.Errorf("failed to send slack message: %v", err)
+				message := fmt.Sprintf("failed to send slack message: %v", err)
+				log.Errorf(message)
+				sentry.CaptureMessage(message)
 			}
-
 			return
 		}
 	}
@@ -143,7 +146,9 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 				// send message to slack
 				err = b.SlackClient.SendMessage(slackChannel, msg, slack.GreenColor)
 				if err != nil {
-					log.Errorf("failed to send slack message: %v", err)
+					message := fmt.Sprintf("failed to send slack message: %v", err)
+					log.Error(message)
+					sentry.CaptureMessage(message)
 				}
 			}
 
@@ -184,7 +189,9 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			// send message to slack
 			err = b.SlackClient.SendMessage(slackChannel, errorMsg, slack.RedColor)
 			if err != nil {
-				log.Errorf("failed to send slack message: %v", err)
+				message := fmt.Sprintf("failed to send slack message: %v", err)
+				log.Error(message)
+				sentry.CaptureMessage(message)
 			}
 
 			return
@@ -192,7 +199,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 	}
 }
 
-func (b *deploymentInformer) Run(ctx context.Context, stopCh <-chan struct{}) {
+func (b *deploymentInformer) Run(ctx context.Context, stopCh <-chan os.Signal) {
 	go b.controller.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), b.controller.HasSynced)
 	log.Info("deployment cache controller synced")

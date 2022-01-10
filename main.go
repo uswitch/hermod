@@ -2,14 +2,19 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/getsentry/sentry-go"
 	kubepkg "github.com/uswitch/hermod/pkg/kubernetes"
+	sentryClient "github.com/uswitch/hermod/pkg/sentry"
 	"github.com/uswitch/hermod/pkg/slack"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/sample-controller/pkg/signals"
 )
 
 type options struct {
@@ -34,22 +39,36 @@ func main() {
 
 	configureLogger(opts.logLevel)
 
+	sentryClient.SetupSentry()
+
+	defer sentryClient.Cleanup()
+
 	kubeConfig, err := kubepkg.CreateClientConfig(opts.kubeconfig)
 	if err != nil {
-		log.Fatalf("error creating kube client config: %s", err)
+		message := fmt.Sprintf("error creating kube client config: %s", err)
+		sentry.CaptureMessage(message)
+		sentryClient.Cleanup()
+		log.Fatalf(message)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		message := fmt.Sprintf("Error building kubernetes clientset: %s", err.Error())
+		sentry.CaptureMessage(message)
+		sentryClient.Cleanup()
+		log.Fatalf(message)
 	}
 
 	slackClient, err := slack.NewClient()
 	if err != nil {
-		log.Fatalf("Error building slack client: %s", err.Error())
+		message := fmt.Sprintf("Error building slack client: %s", err.Error())
+		sentry.CaptureMessage(message)
+		sentryClient.Cleanup()
+		log.Fatalf(message)
 	}
-	// set up signals so we handle the first shutdown signal gracefully
-	stopCh := signals.SetupSignalHandler()
+
+	stopCh := make(chan os.Signal, 1)
+	signal.Notify(stopCh, syscall.SIGTERM, syscall.SIGINT)
 
 	ctx := context.Background()
 

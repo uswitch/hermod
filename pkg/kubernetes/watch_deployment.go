@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
 	"github.com/uswitch/hermod/pkg/slack"
 	appsv1 "k8s.io/api/apps/v1"
@@ -29,6 +31,21 @@ type deploymentInformer struct {
 	hermodGithubCommitSHAAnnotation string
 	githubAnnotationWarning         bool
 }
+
+var (
+	deploymentProcessedTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "hermod_deployment_processed_total",
+		Help: "The total number of deployments processed",
+	})
+	successDeploymentTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "hermod_deployment_success_total",
+		Help: "The total number of successful deployments processed",
+	})
+	failedDeploymentTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "hermod_deployment_success_total",
+		Help: "The total number of failed deployments processed",
+	})
+)
 
 const (
 	revision = "deployment.kubernetes.io/revision"
@@ -101,6 +118,8 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			log.Errorf("failed to add annotation: %v", err)
 		}
 
+		deploymentProcessedTotal.Inc()
+
 		// Send message if alertLevel isn't set to Failure only
 		if alertLevel != hermodAlertFailure {
 			// send message to slack
@@ -138,6 +157,8 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			if err != nil {
 				log.Errorf("failed to add annotation: %v", err)
 			}
+			successDeploymentTotal.Inc()
+
 			msg := fmt.Sprintf("*Rollout for Deployment `%s` in `%s` namespace on `%s` cluster is successful.*", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 			log.Infof(msg)
 
@@ -173,6 +194,8 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			if err != nil {
 				log.Errorf("failed to get the error events: %v", err)
 			}
+
+			failedDeploymentTotal.Inc()
 
 			repo := deploymentNew.GetAnnotations()[b.hermodGithubRepoAnnotation]
 			sha := deploymentNew.GetAnnotations()[b.hermodGithubCommitSHAAnnotation]

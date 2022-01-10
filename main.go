@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/getsentry/sentry-go"
@@ -76,6 +78,9 @@ func main() {
 
 	watcher.Context = ctx
 	watcher.SlackClient = slackClient
+
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(":2112", nil)
 
 	log.Info("starting deployment watcher")
 

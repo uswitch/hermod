@@ -42,7 +42,7 @@ var (
 		Help: "The total number of successful deployments processed",
 	})
 	failedDeploymentTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "hermod_deployment_success_total",
+		Name: "hermod_deployment_failed_total",
 		Help: "The total number of failed deployments processed",
 	})
 )
@@ -118,8 +118,6 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			log.Errorf("failed to add annotation: %v", err)
 		}
 
-		deploymentProcessedTotal.Inc()
-
 		// Send message if alertLevel isn't set to Failure only
 		if alertLevel != hermodAlertFailure {
 			// send message to slack
@@ -131,6 +129,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			}
 			return
 		}
+		deploymentProcessedTotal.Inc()
 	}
 
 	// Get the DeploymentCondition and sort them based on time
@@ -157,7 +156,6 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			if err != nil {
 				log.Errorf("failed to add annotation: %v", err)
 			}
-			successDeploymentTotal.Inc()
 
 			msg := fmt.Sprintf("*Rollout for Deployment `%s` in `%s` namespace on `%s` cluster is successful.*", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 			log.Infof(msg)
@@ -173,6 +171,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 				}
 			}
 
+			successDeploymentTotal.Inc()
 			return
 		}
 	}
@@ -195,8 +194,6 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 				log.Errorf("failed to get the error events: %v", err)
 			}
 
-			failedDeploymentTotal.Inc()
-
 			repo := deploymentNew.GetAnnotations()[b.hermodGithubRepoAnnotation]
 			sha := deploymentNew.GetAnnotations()[b.hermodGithubCommitSHAAnnotation]
 			if repo != "" && sha != "" {
@@ -217,6 +214,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 				sentry.CaptureMessage(message)
 			}
 
+			failedDeploymentTotal.Inc()
 			return
 		}
 	}

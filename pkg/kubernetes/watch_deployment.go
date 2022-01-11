@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/getsentry/sentry-go"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
 	"github.com/uswitch/hermod/pkg/slack"
 	appsv1 "k8s.io/api/apps/v1"
@@ -29,6 +31,21 @@ type deploymentInformer struct {
 	hermodGithubCommitSHAAnnotation string
 	githubAnnotationWarning         bool
 }
+
+var (
+	deploymentProcessedTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "hermod_deployment_processed_total",
+		Help: "The total number of deployments processed",
+	})
+	successDeploymentTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "hermod_deployment_success_total",
+		Help: "The total number of successful deployments processed",
+	})
+	failedDeploymentTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "hermod_deployment_failed_total",
+		Help: "The total number of failed deployments processed",
+	})
+)
 
 const (
 	revision = "deployment.kubernetes.io/revision"
@@ -112,6 +129,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			}
 			return
 		}
+		deploymentProcessedTotal.Inc()
 	}
 
 	// Get the DeploymentCondition and sort them based on time
@@ -138,6 +156,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			if err != nil {
 				log.Errorf("failed to add annotation: %v", err)
 			}
+
 			msg := fmt.Sprintf("*Rollout for Deployment `%s` in `%s` namespace on `%s` cluster is successful.*", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 			log.Infof(msg)
 
@@ -152,6 +171,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 				}
 			}
 
+			successDeploymentTotal.Inc()
 			return
 		}
 	}
@@ -194,6 +214,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 				sentry.CaptureMessage(message)
 			}
 
+			failedDeploymentTotal.Inc()
 			return
 		}
 	}

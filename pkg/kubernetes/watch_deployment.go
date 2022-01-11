@@ -127,9 +127,9 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 				log.Errorf(message)
 				sentry.CaptureMessage(message)
 			}
-			return
 		}
 		deploymentProcessedTotal.Inc()
+		return
 	}
 
 	// Get the DeploymentCondition and sort them based on time

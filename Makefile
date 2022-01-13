@@ -23,6 +23,9 @@ $(BIN_LINUX): $(SOURCES)
 
 build: $(BIN_DARWIN_AMD) $(BIN_DARWIN_ARM) $(BIN_LINUX) fmt vet
 
+run:
+	go run *.go --kubeconfig ~/.kube/config
+
 vet:
 	go vet ./...
 

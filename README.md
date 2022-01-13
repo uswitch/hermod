@@ -8,13 +8,78 @@ It does this by watching the kubernetes api for namespaces and deployments with 
 
 ## To deploy hermod
 
-** Example hermod deployment yaml file **
+See `example/` directory for sample kubernetes manifests.
 
-** Example annotated namespace yaml file **
-** Example annotated deployment yaml file **
+## Add resources for hermod to track
 
-## To build the project:
-run: `make`
+1. Add a namespace for hermod to monitor:
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hermod-test-ns
+  annotations:
+    hermod.uswitch.com/slack: <slack-channel-to-receive-notifications>
+```
+2. Add a new deployment to track in that namespace:
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    # commit SHA of this deployment, used in slack messages
+    service.rvu.co.uk/vcs-ref: c48655970ce3485815638ff8e430d9c69588bed2 
+    # link to git repo, used in slack messages
+    service.rvu.co.uk/vcs-url: https://github.com/my-org/my-app
+  labels:
+    app: nginx
+  name: nginx-deployment
+  namespace: hermod-test-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: hermod
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+```
+
+## To build:
+```
+make
+```  
+Executable binaries will be created in the `bin/` directory.
+
+## To run:
+```
+SLACK_TOKEN=XXXX make run
+```
+
+## Options
+
+| flag  | default | description |
+|---|---|---|
+| --kubeconfig  | "" | Path to kubeconfig file (leave blank when running in k8s pod)  |
+| --level | info | log level  |
+| --repo-url-annotation  | hermod.uswitch.com/gitrepo | Annotation you will add to tracked deployments. This indicates the respository location and is used when publishing messages to slack. |
+| --commit-sha-annotation  | hermod.uswitch.com/gitsha | Annotation you will add to tracked deployments. This indicates the commit SHA deployed and is used when publishing messages to slack. |
+| --git-annotation-warning | false | option to enable warning level logs if previous annotations are missing |
+
+## Metrics
+
+Hermod exposes some prometheus metrics on port `2112` at `/metrics`.
+
+| name  | description  | type |
+|---|---|---|
+| hermod_deployment_processed_total | The total number of deployments processed | Counter |
+| hermod_deployment_success_total | The total number of successful deployments processed | Counter |
+| hermod_deployment_failed_total | The total number of failed deployments processed | Counter |
 
 ## To make an update to hermod
 1. Create a Pull request against this project's `master` branch.

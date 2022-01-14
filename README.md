@@ -2,8 +2,8 @@ Hermod
 ======
 ## About
 
-Hermod is the messenger of the gods.  
-It tracks deployments as they roll out and posts status useful updates into Slack.  
+[Hermod](https://en.wikipedia.org/wiki/Herm%C3%B3%C3%B0r) is the messenger of the gods.  
+It tracks deployments as they roll out and posts useful status updates into Slack.  
 It does this by watching the kubernetes api for namespaces and deployments with the correct annotations. When a new deployment rollout begins and completes updates are posted to the Slack API.  
 Any errors during the deployment rollout are captured and included in the Slack message (see example below). This can be very useful to help quickly debug a failing deployment.
 
@@ -22,16 +22,16 @@ See `example/` directory for sample kubernetes manifests.
 
 ## Add resources for hermod to track
 
-1. Add a namespace for hermod to monitor:
+1. Annotate or create a namespace for hermod to monitor:
 ```
 apiVersion: v1
 kind: Namespace
 metadata:
   name: hermod-test-ns
   annotations:
-    hermod.uswitch.com/slack: <slack-channel-to-receive-notifications>
+    hermod.uswitch.com/slack: <slack-channel-to-receive-notifications> # The presence of this annotation enables hermod for the namespace
 ```
-2. Add a new deployment to track in that namespace:
+2. Add a new deployment in that namespace for hermod to monitor:
 ```
 apiVersion: apps/v1
 kind: Deployment

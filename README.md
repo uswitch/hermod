@@ -24,9 +24,9 @@ kind: Deployment
 metadata:
   annotations:
     # commit SHA of this deployment, used in slack messages
-    hermod.uswitch.com/gitrepo: c48655970ce3485815638ff8e430d9c69588bed2 
+    hermod.uswitch.com/gitsha: c48655970ce3485815638ff8e430d9c69588bed2 
     # link to git repo, used in slack messages
-    hermod.uswitch.com/gitsha: https://github.com/my-org/my-app
+    hermod.uswitch.com/gitrepo: https://github.com/my-org/my-app
   labels:
     app: nginx
   name: nginx-deployment

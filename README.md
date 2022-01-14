@@ -1,6 +1,20 @@
+Hermod
+======
+## About
+
 Hermod is the messenger of the gods.  
-It tracks deployments as they roll out and posts status updates into Slack.  
+It tracks deployments as they roll out and posts status useful updates into Slack.  
 It does this by watching the kubernetes api for namespaces and deployments with the correct annotations. When a new deployment rollout begins and completes updates are posted to the Slack API.  
+Any errors during the deployment rollout are captured and included in the Slack message (see example below). This can be very useful to help quickly debug a failing deployment.
+
+Hermod will notify when a new deployment starts rolling out:  
+![Deployment started notification](images/deploy-start.png?raw=true "Deployment started")  
+
+When a deployment successfully rolls out:  
+![Deployment started notification](images/deploy-end-success.png?raw=true "Deployment succeeded")  
+
+When a deployment fails to roll out:  
+![Deployment failed notification](images/deploy-end-fail.png?raw=true "Deployment failed")  
 
 ## To deploy hermod
 
@@ -39,7 +53,7 @@ spec:
   template:
     metadata:
       labels:
-        app: hermod
+        app: nginx
     spec:
       containers:
       - image: nginx

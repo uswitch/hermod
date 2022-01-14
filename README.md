@@ -1,7 +1,3 @@
-Hermod
-======
-## About
-
 Hermod is the messenger of the gods.  
 It tracks deployments as they roll out and posts status updates into Slack.  
 It does this by watching the kubernetes api for namespaces and deployments with the correct annotations. When a new deployment rollout begins and completes updates are posted to the Slack API.  
@@ -28,9 +24,9 @@ kind: Deployment
 metadata:
   annotations:
     # commit SHA of this deployment, used in slack messages
-    service.rvu.co.uk/vcs-ref: c48655970ce3485815638ff8e430d9c69588bed2 
+    hermod.uswitch.com/gitrepo: c48655970ce3485815638ff8e430d9c69588bed2 
     # link to git repo, used in slack messages
-    service.rvu.co.uk/vcs-url: https://github.com/my-org/my-app
+    hermod.uswitch.com/gitsha: https://github.com/my-org/my-app
   labels:
     app: nginx
   name: nginx-deployment
@@ -71,8 +67,9 @@ SLACK_TOKEN=XXXX make run
 | --commit-sha-annotation  | hermod.uswitch.com/gitsha | Annotation you will add to tracked deployments. This indicates the commit SHA deployed and is used when publishing messages to slack. |
 | --git-annotation-warning | false | option to enable warning level logs if previous annotations are missing |
 
-## Metrics
+## Monitoring
 
+### Prometheus
 Hermod exposes some prometheus metrics on port `2112` at `/metrics`.
 
 | name  | description  | type |
@@ -81,8 +78,12 @@ Hermod exposes some prometheus metrics on port `2112` at `/metrics`.
 | hermod_deployment_success_total | The total number of successful deployments processed | Counter |
 | hermod_deployment_failed_total | The total number of failed deployments processed | Counter |
 
+### Sentry
+Hermod can also publish some error events to [Sentry](https://sentry.io).  
+This is optional but can be enabled by configuring the `SENTRY_ENDPOINT` environment variable and setting it to your [Sentry DSN](https://docs.sentry.io/product/sentry-basics/dsn-explainer/).  
+
 ## To make an update to hermod
-1. Create a Pull request against this project's `master` branch.
+1. Create a Pull request against this project's `main` branch.
 2. When your changes are reviewed and merged we will tag and release a new version for you.
 3. A new docker image will be automatically created with the given tag.
 4. Update your kubernetes deployment to use the new image.

@@ -20,8 +20,8 @@ spec:
     spec:
       containers:
       - args:
-        - --repo-url-annotation=service.rvu.co.uk/vcs-url
-        - --commit-sha-annotation=service.rvu.co.uk/vcs-ref
+        - --repo-url-annotation=hermod.uswitch.com/gitrepo
+        - --commit-sha-annotation=hermod.uswitch.com/gitsha
         - --git-annotation-warning
         env:
         - name: SLACK_TOKEN

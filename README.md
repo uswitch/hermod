@@ -22,6 +22,9 @@ See `example/` directory for sample kubernetes manifests.
 
 ## Add resources for hermod to track
 
+Every namespace you want to monitor deployments in need to have the annotation `hermod.uswitch.com/slack=<name-of-slack-channel>`.  
+Your deployments within this namespace also need two annotations (these are configurable, see [here](#-options)): `hermod.uswitch.com/gitsha` and `hermod.uswitch.com/gitrepo` (examples below).  
+
 1. Annotate or create a namespace for hermod to monitor:
 ```
 apiVersion: v1

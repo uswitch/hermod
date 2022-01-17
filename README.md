@@ -18,12 +18,29 @@ When a deployment fails to roll out:
 
 ## To deploy hermod
 
-See `example/` directory for sample kubernetes manifests.
+1. Deploy hermod to your kubernetes cluster  
+    See `example/` directory for sample kubernetes manifests.  
+2. Install Hermod app in your Slack directory [here](https://slack.com/apps).
+3. Add Hermod to any channels in which you want to receive updates from Hermod.
+4. Create resources for hermod to track.
 
-## Add resources for hermod to track
+## Resource annotations
 
-Every namespace you want to monitor deployments in need to have the annotation `hermod.uswitch.com/slack=<name-of-slack-channel>`.  
-Your deployments within this namespace also need two annotations (these are configurable, see [here](#-options)): `hermod.uswitch.com/gitsha` and `hermod.uswitch.com/gitrepo` (examples below).  
+### Namespace annotations
+
+| annotation | example | description | notes |
+|---|---|---|---|
+| `hermod.uswitch.com/slack` | "hermod-updates" | Configures which Slack channel to post updates to | Required for each namespace that hermod should monitor. Different namespaces can send updates to different Slack channels |
+| `hermod.uswitch.com/alert` | "failure" | Only notify on deployment rollout failure | Optional |
+
+### Deployment annotations
+
+| annotation | example | description |
+|---|---|---|
+| `hermod.uswitch.com/gitsha` | 2dafeb708437f6e537d19556d461e30aa96d4244 | Optional. Commit SHA of code deployment. The name of this annotation is configuratble, see [here](#options). |
+| `hermod.uswitch.com/gitrepo` | https://github.com/my-org/my-app | Optional. Git Repo Url of code deployment. The name of this annotation is configuratble, see [here](#options). |
+
+## Add resources for hermod to track  
 
 1. Annotate or create a namespace for hermod to monitor:
 ```
@@ -32,7 +49,10 @@ kind: Namespace
 metadata:
   name: hermod-test-ns
   annotations:
-    hermod.uswitch.com/slack: <slack-channel-to-receive-notifications> # The presence of this annotation enables hermod for the namespace
+    # The presence of this annotation enables hermod for the namespace and configures where to post updates in Slack
+    hermod.uswitch.com/slack: <slack-channel-to-receive-notifications> 
+    # Optional, notify only on deployment failure
+    hermod.uswitch.com/alert: failure 
 ```
 2. Add a new deployment in that namespace for hermod to monitor:
 ```
@@ -40,9 +60,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    # commit SHA of this deployment, used in slack messages
+    # commit SHA of this deployment, used in slack messages, optional
     hermod.uswitch.com/gitsha: c48655970ce3485815638ff8e430d9c69588bed2 
-    # link to git repo, used in slack messages
+    # link to git repo, used in slack messages, optional
     hermod.uswitch.com/gitrepo: https://github.com/my-org/my-app
   labels:
     app: nginx
@@ -83,6 +103,14 @@ SLACK_TOKEN=XXXX make run
 | --repo-url-annotation  | hermod.uswitch.com/gitrepo | Annotation you will add to tracked deployments. This indicates the respository location and is used when publishing messages to slack. |
 | --commit-sha-annotation  | hermod.uswitch.com/gitsha | Annotation you will add to tracked deployments. This indicates the commit SHA deployed and is used when publishing messages to slack. |
 | --git-annotation-warning | false | option to enable warning level logs if previous annotations are missing |
+
+## Environment Variables
+
+| name  | default | required | description |
+|---|---|---|---|
+| SLACK_TOKEN | "" | y | API token for Slack |
+| SENTRY_ENDPOINT | "" | n | [Sentry DSN](https://docs.sentry.io/product/sentry-basics/dsn-explainer/) |
+| CLUSTER_NAME | "" | n | Name of your kubernetes cluster, used in Slack messages |
 
 ## Monitoring
 

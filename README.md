@@ -11,7 +11,7 @@ Hermod will notify when a new deployment starts rolling out:
 ![Deployment started notification](images/deploy-start.png?raw=true "Deployment started")  
 
 When a deployment successfully rolls out:  
-![Deployment started notification](images/deploy-end-success.png?raw=true "Deployment succeeded")  
+![Deployment succeeded notification](images/deploy-end-success.png?raw=true "Deployment succeeded")  
 
 When a deployment fails to roll out:  
 ![Deployment failed notification](images/deploy-end-fail.png?raw=true "Deployment failed")  

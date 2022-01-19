@@ -1,20 +1,30 @@
-ARCH = amd64
+ARCH_AMD = amd64
+ARCH_ARM = arm64
 BIN  = bin/hermod
-BIN_LINUX  = $(BIN)-linux-$(ARCH)
-BIN_DARWIN = $(BIN)-darwin-$(ARCH)
+BIN_LINUX  = $(BIN)-linux-$(ARCH_AMD)
+BIN_DARWIN_AMD = $(BIN)-darwin-$(ARCH_AMD)
+BIN_DARWIN_ARM = $(BIN)-darwin-$(ARCH_ARM)
 IMAGE = registry.usw.co/uswitch/hermod
 
 SOURCES = $(shell find . -type f -iname "*.go")
 
 .PHONY: clean
 
-$(BIN_DARWIN): $(SOURCES)
-	GOARCH=$(ARCH) GOOS=darwin go build -o $(BIN_DARWIN) *.go
+all: build
+
+$(BIN_DARWIN_ARM): $(SOURCES)
+	GOARCH=$(ARCH_ARM) GOOS=darwin CGO_ENABLED=0 go build -o $(BIN_DARWIN_ARM) *.go
+
+$(BIN_DARWIN_AMD): $(SOURCES)
+	GOARCH=$(ARCH_AMD) GOOS=darwin go build -o $(BIN_DARWIN_AMD) *.go
 
 $(BIN_LINUX): $(SOURCES)
-	GOARCH=$(ARCH) GOOS=linux CGO_ENABLED=0 go build -o $(BIN_LINUX) *.go
+	GOARCH=$(ARCH_AMD) GOOS=linux CGO_ENABLED=0 go build -o $(BIN_LINUX) *.go
 
-build: $(BIN_DARWIN) $(BIN_LINUX) fmt vet
+build: $(BIN_DARWIN_AMD) $(BIN_DARWIN_ARM) $(BIN_LINUX) fmt vet
+
+run:
+	go run *.go --kubeconfig ~/.kube/config
 
 vet:
 	go vet ./...

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: hermod
+  name: hermod
+  namespace: hermod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hermod
+  template:
+    metadata:
+      labels:
+        app: hermod
+      annotations:
+        prometheus.io/port: "2112"
+        prometheus.io/scrape: "true"
+    spec:
+      containers:
+      - args:
+        - --repo-url-annotation=hermod.uswitch.com/gitrepo
+        - --commit-sha-annotation=hermod.uswitch.com/gitsha
+        - --git-annotation-warning
+        env:
+        - name: SLACK_TOKEN
+          valueFrom: 
+            secretKeyRef:
+              name: hermod-slack
+              key: token 
+        - name: SENTRY_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: hermod-sentry
+              key: endpoint
+        - name: CLUSTER_NAME
+          value: "cluster-name"
+        image: registry.usw.co/cloud/hermod:0.9.1
+        imagePullPolicy: IfNotPresent
+        name: hermod
+        resources:
+            requests:
+              cpu: 10m
+              memory: 100Mi
+            limits:
+              memory: 200Mi

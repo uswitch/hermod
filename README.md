@@ -140,3 +140,7 @@ If you come across issues please raise an issue against the GitHub project. Incl
 ## Contributing
 
 Contributions are always welcome. Please feel free to raise a pull request and we will review as soon as we can.
+
+## More like this
+Check our other open source projects here:
+https://www.rvu.co.uk/open-source

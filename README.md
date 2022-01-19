@@ -2,7 +2,7 @@ Hermod
 ======
 ## About
 
-[Hermod](https://en.wikipedia.org/wiki/Herm%C3%B3%C3%B0r) is the messenger of the gods.  
+[Hermod](https://en.wikipedia.org/wiki/Herm%C3%B3%C3%B0r) takes its name from the Norse messenger of the gods.  
 It tracks deployments as they roll out and posts useful status updates into Slack.  
 It does this by watching the kubernetes api for namespaces and deployments with the correct annotations. When a new deployment rollout begins and completes updates are posted to the Slack API.  
 Any errors during the deployment rollout are captured and included in the Slack message (see example below). This can be very useful to help quickly debug a failing deployment.
@@ -16,9 +16,9 @@ When a deployment successfully rolls out:
 When a deployment fails to roll out:  
 ![Deployment failed notification](images/deploy-end-fail.png?raw=true "Deployment failed")  
 
-## To deploy hermod
+## To deploy Hermod
 
-1. Deploy hermod to your kubernetes cluster  
+1. Deploy Hermod to your kubernetes cluster  
     See `example/` directory for sample kubernetes manifests.  
 2. Install Hermod app in your Slack directory [here](https://slack.com/apps).
 3. Add Hermod to any channels in which you want to receive updates from Hermod.
@@ -37,10 +37,10 @@ When a deployment fails to roll out:
 
 | annotation | example | description |
 |---|---|---|
-| `hermod.uswitch.com/gitsha` | 2dafeb708437f6e537d19556d461e30aa96d4244 | Optional. Commit SHA of code deployment. The name of this annotation is configuratble, see [here](#options). |
-| `hermod.uswitch.com/gitrepo` | https://github.com/my-org/my-app | Optional. Git Repo Url of code deployment. The name of this annotation is configuratble, see [here](#options). |
+| `hermod.uswitch.com/gitsha` | 2dafeb708437f6e537d19556d461e30aa96d4244 | Optional. Commit SHA of code deployment. The name of this annotation is configurable, see [here](#options). |
+| `hermod.uswitch.com/gitrepo` | https://github.com/my-org/my-app | Optional. Git Repo Url of code deployment. The name of this annotation is configurable, see [here](#options). |
 
-## Add resources for hermod to track  
+## Add resources for Hermod to track
 
 1. Annotate or create a namespace for hermod to monitor:
 ```
@@ -127,7 +127,7 @@ Hermod exposes some prometheus metrics on port `2112` at `/metrics`.
 Hermod can also publish some error events to [Sentry](https://sentry.io).  
 This is optional but can be enabled by configuring the `SENTRY_ENDPOINT` environment variable and setting it to your [Sentry DSN](https://docs.sentry.io/product/sentry-basics/dsn-explainer/).  
 
-## To make an update to hermod
+## To make an update to Hermod
 1. Create a Pull request against this project's `main` branch.
 2. When your changes are reviewed and merged we will tag and release a new version for you.
 3. A new docker image will be automatically created with the given tag.

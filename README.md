@@ -22,7 +22,7 @@ When a deployment fails to roll out:
 ## To deploy Hermod
 
 1. Deploy Hermod to your kubernetes cluster  
-    See `example/` directory for sample kubernetes manifests.  
+    See [example](./example) directory for sample kubernetes manifests.  
 2. Install Hermod app in your Slack directory [here](https://slack.com/apps).
 3. Add Hermod to any channels in which you want to receive updates from Hermod.
 4. Create resources for hermod to track.

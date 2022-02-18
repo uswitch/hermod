@@ -36,7 +36,7 @@ spec:
               key: endpoint
         - name: CLUSTER_NAME
           value: "cluster-name"
-        image: registry.usw.co/cloud/hermod:0.9.1
+        image: quay.io/uswitch/hermod:latest
         imagePullPolicy: IfNotPresent
         name: hermod
         resources:

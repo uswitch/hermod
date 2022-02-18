@@ -4,7 +4,7 @@ BIN  = bin/hermod
 BIN_LINUX  = $(BIN)-linux-$(ARCH_AMD)
 BIN_DARWIN_AMD = $(BIN)-darwin-$(ARCH_AMD)
 BIN_DARWIN_ARM = $(BIN)-darwin-$(ARCH_ARM)
-IMAGE = registry.usw.co/uswitch/hermod
+IMAGE = hermod
 
 SOURCES = $(shell find . -type f -iname "*.go")
 

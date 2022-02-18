@@ -16,6 +16,9 @@ When a deployment successfully rolls out:
 When a deployment fails to roll out:  
 ![Deployment failed notification](images/deploy-end-fail.png?raw=true "Deployment failed")  
 
+## Prerequisite
+- Read about Slack API documentation [here](https://api.slack.com/#read_the_docs) & [here](https://api.slack.com/start) and create a Slack App for ermod in your organisation.
+
 ## To deploy Hermod
 
 1. Deploy Hermod to your kubernetes cluster  

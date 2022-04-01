@@ -1,0 +1,47 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hermod
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - list
+- apiGroups:
+  - "apps"
+  resources:
+  - deployments
+  verbs:
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - "apps"
+  resources:
+  - replicasets
+  verbs:
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hermod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hermod
+subjects:
+- kind: ServiceAccount
+  name: hermod
+  namespace: hermod

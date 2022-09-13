@@ -4,11 +4,11 @@ workspace:
 
 pipeline:
   test:
-    image: golang:1.16
+    image: golang:1.18
     commands:
       - GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -v -cover $(go list ./...)
   build:
-    image: golang:1.16
+    image: golang:1.18
     commands:
       - make build
 

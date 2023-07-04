@@ -252,7 +252,7 @@ func TestGetErrorEvents(t *testing.T) {
 	}
 	client := k8sfake.NewSimpleClientset(&podo, &deployment, &rs)
 
-	outputString := fmt.Sprintf("*Rollout for Deployment `test` (RS: `test`) in `test` namespace failed after `10` seconds on the `` cluster.*\n\n*Retrieved the following errors:*\n```\n* InitContainerStatusReason - InitContainerStatusMessage\n```\n```\n* containerStatusReason - containerStatusMessage\n```\n```\n* conditionReason - conditionMessage\n```")
+	outputString := fmt.Sprintf("*Rollout for Deployment `test` (RS: `test`) in `test` namespace failed after `10` seconds on the `` cluster.*\n\n*Retrieved the following errors:*\n```\n* containerStatusReason - containerStatusMessage\n```\n```\n* conditionReason - conditionMessage\n```\n```\n* InitContainerStatusReason - InitContainerStatusMessage\n```")
 	type args struct {
 		ctx           context.Context
 		namespace     string

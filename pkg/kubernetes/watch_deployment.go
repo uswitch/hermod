@@ -157,7 +157,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 				log.Errorf("failed to add annotation: %v", err)
 			}
 
-			msg := fmt.Sprintf("*Rollout for Deployment `%s` in `%s` namespace on `%s` cluster is successful.*", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
+			msg := fmt.Sprintf("*Rollout for Deployment `%s` in namespace `%s` on `%s` cluster is successful.*", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
 			log.Infof(msg)
 
 			// Send message if alertLevel isn't set to Failure only

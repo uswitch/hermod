@@ -6,6 +6,6 @@ FROM scratch
 
 COPY --from=base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-ADD bin/hermod-linux-amd64 hermod
+ADD --chmod=755 bin/hermod-linux-amd64 hermod
 
 ENTRYPOINT ["/hermod"]

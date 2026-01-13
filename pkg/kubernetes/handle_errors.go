@@ -58,8 +58,15 @@ func getErrorEvents(ctx context.Context, client kubernetes.Interface, namespace 
 			reasonMessageMap = getReasonMessageMapFromPodConditions(pod.Status.Conditions, reasonMessageMap)
 		}
 
-		for reason, message := range reasonMessageMap {
-			errorList = append(errorList, fmt.Sprintf("```\n* %s - %s\n```", reason, message))
+		// Sort keys for deterministic ordering
+		reasons := make([]string, 0, len(reasonMessageMap))
+		for reason := range reasonMessageMap {
+			reasons = append(reasons, reason)
+		}
+		sort.Strings(reasons)
+
+		for _, reason := range reasons {
+			errorList = append(errorList, fmt.Sprintf("```\n* %s - %s\n```", reason, reasonMessageMap[reason]))
 		}
 	}
 

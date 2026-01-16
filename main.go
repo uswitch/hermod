@@ -50,7 +50,7 @@ func main() {
 		message := fmt.Sprintf("error creating kube client config: %s", err)
 		sentry.CaptureMessage(message)
 		sentryClient.Cleanup()
-		log.Fatalf(message)
+		log.Fatal(message)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
@@ -58,7 +58,7 @@ func main() {
 		message := fmt.Sprintf("Error building kubernetes clientset: %s", err.Error())
 		sentry.CaptureMessage(message)
 		sentryClient.Cleanup()
-		log.Fatalf(message)
+		log.Fatal(message)
 	}
 
 	slackClient, err := slack.NewClient()
@@ -66,7 +66,7 @@ func main() {
 		message := fmt.Sprintf("Error building slack client: %s", err.Error())
 		sentry.CaptureMessage(message)
 		sentryClient.Cleanup()
-		log.Fatalf(message)
+		log.Fatal(message)
 	}
 
 	stopCh := make(chan os.Signal, 1)

@@ -74,7 +74,7 @@ func NewDeploymentWatcher(client *kubernetes.Clientset, hermodGithubRepoAnnotati
 	return deploymentInformer
 }
 
-func (b *deploymentInformer) OnAdd(obj interface{}) {
+func (b *deploymentInformer) OnAdd(obj interface{}, isInInitialList bool) {
 }
 
 func (b *deploymentInformer) OnDelete(obj interface{}) {
@@ -112,7 +112,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 	// detecting the deployment rollout
 	if deploymentOld.GetAnnotations()[revision] != deploymentNew.GetAnnotations()[revision] && deploymentNew.Annotations[hermodStateAnnotation] != hermodProgressingState {
 		msg := fmt.Sprintf("*Rolling out Deployment `%s` in namespace `%s` on `%s` cluster.*", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
-		log.Infof(msg)
+		log.Info(msg)
 		err := addAnnotation(b.Context, b.client, deploymentNew.Namespace, updateDeployment, hermodProgressingState)
 		if err != nil {
 			log.Errorf("failed to add annotation: %v", err)
@@ -124,7 +124,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			err = b.SlackClient.SendMessage(slackChannel, msg, slack.OrangeColor)
 			if err != nil {
 				message := fmt.Sprintf("failed to send slack message: %v", err)
-				log.Errorf(message)
+				log.Error(message)
 				sentry.CaptureMessage(message)
 			}
 		}
@@ -158,7 +158,7 @@ func (b *deploymentInformer) OnUpdate(old, new interface{}) {
 			}
 
 			msg := fmt.Sprintf("*Rollout for Deployment `%s` in `%s` namespace on `%s` cluster is successful.*", deploymentNew.Name, deploymentNew.Namespace, getClusterName())
-			log.Infof(msg)
+			log.Info(msg)
 
 			// Send message if alertLevel isn't set to Failure only
 			if alertLevel != hermodAlertFailure {
